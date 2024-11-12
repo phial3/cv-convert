@@ -1,5 +1,5 @@
-pub use from::*;
-pub use try_from::*;
+pub use from::{FromCv, IntoCv};
+pub use try_from::{TryFromCv, TryIntoCv};
 
 mod try_from {
     /// Fallible type conversion that is analogous to [TryFrom](std::convert::TryFrom).

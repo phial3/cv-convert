@@ -1,4 +1,3 @@
-use core::slice::SlicePattern;
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{common::*, TryFromCv, TryIntoCv};
 
@@ -29,19 +28,20 @@ where
     type Error = Error;
     fn try_from_cv(from: &image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
         let (width, height) = from.dimensions();
-        // let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
+        let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
 
-        // 获取 ImageBuffer 底层数据切片
-        let data = from.as_raw().as_slice();
-
-        // 使用安全的方式创建 OpenCV Mat
-        let mat = Mat::new_rows_cols_with_data(
-            height as i32, // 行数
-            width as i32,  // 列数
-            data,     // 数据切片
-        )?;
-
-        Ok(mat.try_clone()?)
+        // 使用不安全的方式创建 OpenCV Mat
+        let mat = unsafe {
+            Mat::new_rows_cols_with_data_unsafe(
+                height as i32, // 行数
+                width as i32,  // 列数
+                cv_type,       //
+                from.as_ptr() as *mut _,     // 获取 ImageBuffer 底层数据切片
+                opencv::core::Mat_AUTO_STEP, // 步长
+            )?
+                .try_clone()?
+        };
+        Ok(mat)
     }
 }
 
@@ -207,7 +207,6 @@ where
 }
 
 // Utility functions
-
 fn mat_to_image_buffer_gray<T>(
     mat: &Mat,
     width: u32,

@@ -200,19 +200,20 @@
 
 extern crate core;
 
+pub mod prelude {
+    pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+}
+
 mod common;
 
 mod traits;
 pub use traits::*;
 
-pub mod prelude {
-    pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
-}
-
 mod macros;
 use macros::*;
 
 mod with_opencv;
+pub use with_opencv::*;
 
 mod with_tch;
 pub use with_tch::*;
@@ -225,7 +226,6 @@ pub use with_tch_ndarray::*;
 
 mod with_opencv_image;
 pub use with_opencv_image::*;
-
 
 mod with_opencv_imageproc;
 pub use with_opencv_imageproc::*;
