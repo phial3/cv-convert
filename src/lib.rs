@@ -198,6 +198,8 @@
 //! by default to avoid bloating. Add opencv dependency to your
 //! project Cargo.toml to enable default modules in your project.
 
+extern crate core;
+
 mod common;
 
 mod traits;

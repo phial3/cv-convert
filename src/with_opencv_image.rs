@@ -1,3 +1,4 @@
+use core::slice::SlicePattern;
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{common::*, TryFromCv, TryIntoCv};
 
@@ -31,7 +32,7 @@ where
         // let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
 
         // 获取 ImageBuffer 底层数据切片
-        let data = from.as_flat_samples().as_slice();
+        let data = from.as_raw().as_slice();
 
         // 使用安全的方式创建 OpenCV Mat
         let mat = Mat::new_rows_cols_with_data(
@@ -254,7 +255,7 @@ mod tests {
     use anyhow::Result;
     use image;
     use itertools::iproduct;
-    use {opencv::core::Mat, prelude::*};
+    use opencv::{core::Mat, prelude::*};
 
     #[test]
     fn convert_opencv_image() -> Result<()> {

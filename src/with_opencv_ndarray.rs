@@ -1,17 +1,17 @@
 use ndarray as nd;
-use opencv::{core as cv, prelude::*};
+use opencv::{core::Mat, prelude::*};
 use crate::with_opencv::MatExt as _;
 use crate::with_opencv::OpenCvElement;
 use crate::{common::*, TryFromCv, TryIntoCv};
 
-impl<'a, A, D> TryFromCv<&'a cv::Mat> for nd::ArrayView<'a, A, D>
+impl<'a, A, D> TryFromCv<&'a Mat> for nd::ArrayView<'a, A, D>
 where
     A: OpenCvElement,
     D: nd::Dimension,
 {
     type Error = anyhow::Error;
 
-    fn try_from_cv(from: &'a cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: &'a Mat) -> Result<Self, Self::Error> {
         let src_shape = from.size_with_depth();
         let array = nd::ArrayViewD::from_shape(src_shape, from.as_slice()?)?;
         let array = array.into_dimensionality()?;
@@ -19,14 +19,14 @@ where
     }
 }
 
-impl<A, D> TryFromCv<&cv::Mat> for nd::Array<A, D>
+impl<A, D> TryFromCv<&Mat> for nd::Array<A, D>
 where
     A: OpenCvElement + Clone,
     D: nd::Dimension,
 {
     type Error = anyhow::Error;
 
-    fn try_from_cv(from: &cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
         let src_shape = from.size_with_depth();
         let array = nd::ArrayViewD::from_shape(src_shape, from.as_slice()?)?;
         let array = array.into_dimensionality()?;
@@ -35,21 +35,21 @@ where
     }
 }
 
-impl<A, D> TryFromCv<cv::Mat> for nd::Array<A, D>
+impl<A, D> TryFromCv<Mat> for nd::Array<A, D>
 where
     A: OpenCvElement + Clone,
     D: nd::Dimension,
 {
     type Error = anyhow::Error;
 
-    fn try_from_cv(from: cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
         (&from).try_into_cv()
     }
 }
 
-impl<A, S, D> TryFromCv<&nd::ArrayBase<S, D>> for cv::Mat
+impl<A, S, D> TryFromCv<&nd::ArrayBase<S, D>> for Mat
 where
-    A: cv::DataType,
+    A: DataType,
     S: nd::RawData<Elem = A> + nd::Data,
     D: nd::Dimension,
 {
@@ -65,15 +65,15 @@ where
         };
         let array = from.as_standard_layout();
         let slice = array.as_slice().unwrap();
-        let binding = cv::Mat::from_slice(slice)?;
+        let binding = Mat::from_slice(slice)?;
         let mat = binding.reshape_nd(*channels, shape)?;
         Ok(mat.try_clone()?)
     }
 }
 
-impl<A, S, D> TryFromCv<nd::ArrayBase<S, D>> for cv::Mat
+impl<A, S, D> TryFromCv<nd::ArrayBase<S, D>> for Mat
 where
-    A: cv::DataType,
+    A: DataType,
     S: nd::RawData<Elem = A> + nd::Data,
     D: nd::Dimension,
 {
@@ -100,10 +100,10 @@ mod tests {
             let ndim: usize = rng.gen_range(2..=4);
             let shape: Vec<usize> = (0..ndim).map(|_| rng.gen_range(1..=32)).collect();
 
-            let in_mat = cv::Mat::new_randn_nd::<f32>(&shape)?;
+            let in_mat = Mat::new_randn_nd::<f32>(&shape)?;
             let view: nd::ArrayViewD<f32> = (&in_mat).try_into_cv()?;
             let array: nd::ArrayD<f32> = (&in_mat).try_into_cv()?;
-            let out_mat: cv::Mat = (&array).try_into_cv()?;
+            let out_mat: Mat = (&array).try_into_cv()?;
 
             shape
                 .iter()
