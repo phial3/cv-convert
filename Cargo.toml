@@ -15,7 +15,7 @@ features = ['docs-only']
 
 [features]
 default = [
-    #'tch',
+    'tch',
     'ndarray',
     'opencv',
     'nalgebra',
@@ -32,7 +32,8 @@ rand = '0.8'
 half = '2.4'
 anyhow = '1.0'
 num-traits = '0.2'
-#tch = { version = '0.18', default-features = true, optional = true }
+slice-of-array = '0.3'
+tch = { version = '0.18', default-features = true, optional = true }
 image = { version = '0.25', default-features = true, optional = true }
 nalgebra = { version = '0.33', default-features = true, optional = true }
 ndarray = { version = '0.16', default-features = true, optional = true }
