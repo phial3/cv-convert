@@ -1,7 +1,8 @@
-use opencv::{core as cv, prelude::*};
-use tch;
 use crate::{common::*, TchTensorAsImage, TchTensorImageShape, TryFromCv, TryIntoCv};
+use anyhow::{ensure, Context, Error, Result};
+use opencv::{core as cv, prelude::*};
 use std::borrow::Cow;
+use tch;
 use utils::*;
 mod utils {
     use super::*;
@@ -29,7 +30,7 @@ mod utils {
             K::Int => cv::CV_32S,
             K::Float => cv::CV_32F,
             K::Double => cv::CV_64F,
-            kind => bail!("unsupported tensor kind {:?}", kind),
+            kind => anyhow::bail!("unsupported tensor kind {:?}", kind),
         };
 
         Ok(typ)
@@ -46,7 +47,7 @@ mod utils {
             cv::CV_16F => K::Half,
             cv::CV_32F => K::Float,
             cv::CV_64F => K::Double,
-            _ => bail!("unsupported OpenCV Mat depth {}", depth),
+            _ => anyhow::bail!("unsupported OpenCV Mat depth {}", depth),
         };
         Ok(kind)
     }
@@ -249,14 +250,19 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         // 通用函数处理不同类型的数据
         unsafe fn create_mat_from_tensor<T>(
             tensor: &tch::Tensor,
-            total_size: usize,
+            _total_size: usize,
             typ: i32,
             rows: i32,
             cols: i32,
         ) -> Result<cv::Mat, Error> {
             // let data_ptr = tensor.data_ptr() as *const T;
             // let data_slice = std::slice::from_raw_parts(data_ptr, total_size);
-            Ok(Mat::new_rows_cols_with_data_unsafe_def(rows, cols, typ, tensor.data_ptr())?)
+            Ok(Mat::new_rows_cols_with_data_unsafe_def(
+                rows,
+                cols,
+                typ,
+                tensor.data_ptr(),
+            )?)
         }
 
         // 计算总数据量
@@ -265,11 +271,41 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         // 根据 tensor 的 kind 调用 create_mat_from_tensor
         let mat = unsafe {
             match tensor.kind() {
-                tch::Kind::Uint8 => create_mat_from_tensor::<u8>(&tensor, total_size, typ, rows as i32, cols as i32)?,
-                tch::Kind::Int8 => create_mat_from_tensor::<i8>(&tensor, total_size, typ, rows as i32, cols as i32)?,
-                tch::Kind::Int16 => create_mat_from_tensor::<i16>(&tensor, total_size, typ, rows as i32, cols as i32)?,
-                tch::Kind::Float => create_mat_from_tensor::<f32>(&tensor, total_size, typ, rows as i32, cols as i32)?,
-                tch::Kind::Double => create_mat_from_tensor::<f64>(&tensor, total_size,typ,  rows as i32, cols as i32)?,
+                tch::Kind::Uint8 => create_mat_from_tensor::<u8>(
+                    &tensor,
+                    total_size,
+                    typ,
+                    rows as i32,
+                    cols as i32,
+                )?,
+                tch::Kind::Int8 => create_mat_from_tensor::<i8>(
+                    &tensor,
+                    total_size,
+                    typ,
+                    rows as i32,
+                    cols as i32,
+                )?,
+                tch::Kind::Int16 => create_mat_from_tensor::<i16>(
+                    &tensor,
+                    total_size,
+                    typ,
+                    rows as i32,
+                    cols as i32,
+                )?,
+                tch::Kind::Float => create_mat_from_tensor::<f32>(
+                    &tensor,
+                    total_size,
+                    typ,
+                    rows as i32,
+                    cols as i32,
+                )?,
+                tch::Kind::Double => create_mat_from_tensor::<f64>(
+                    &tensor,
+                    total_size,
+                    typ,
+                    rows as i32,
+                    cols as i32,
+                )?,
                 _ => return Err(anyhow::anyhow!("Unsupported tensor kind")),
             }
         };
@@ -300,11 +336,14 @@ impl TryFromCv<&tch::Tensor> for cv::Mat {
         let depth = tch_kind_to_opencv_depth(tensor.f_kind()?)?;
 
         // 检查张量类型的通道数
-        let typ = cv::CV_MAKETYPE(depth, 1);
+        let _typ = cv::CV_MAKETYPE(depth, 1);
 
         // 使用 unsafe 块从指针生成 Mat
         let mat = unsafe {
-            Mat::new_nd_with_data(&size, std::slice::from_raw_parts(tensor.data_ptr() as *const u8, tensor.numel()))?
+            Mat::new_nd_with_data(
+                &size,
+                std::slice::from_raw_parts(tensor.data_ptr() as *const u8, tensor.numel()),
+            )?
         };
 
         Ok(mat.try_clone()?)
@@ -404,12 +443,18 @@ mod tests {
                 for col in 0..width {
                     let pixel: &cv::Vec3f = mat.at_2d(row as i32, col as i32)?;
                     let [red, green, blue] = **pixel;
-                    ensure!(f32::try_from(before.i((0, row, col))).unwrap() == red, "value mismatch");
+                    ensure!(
+                        f32::try_from(before.i((0, row, col))).unwrap() == red,
+                        "value mismatch"
+                    );
                     ensure!(
                         f32::try_from(before.i((1, row, col))).unwrap() == green,
                         "value mismatch"
                     );
-                    ensure!(f32::try_from(before.i((2, row, col))).unwrap() == blue, "value mismatch");
+                    ensure!(
+                        f32::try_from(before.i((2, row, col))).unwrap() == blue,
+                        "value mismatch"
+                    );
                 }
             }
 

@@ -1,4 +1,5 @@
 use crate::{common::*, FromCv, IntoCv, TchTensorAsImage, TchTensorImageShape, TryFromCv};
+use anyhow::{bail, ensure, Context, Error, Result};
 use image;
 use std::ops::Deref;
 use tch;

@@ -1,6 +1,6 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{common::*, TryFromCv, TryIntoCv};
-
+use anyhow::{Context, Error, Result};
 use image;
 use opencv::{core::Mat, prelude::*};
 use std::ops::Deref;
@@ -63,7 +63,7 @@ impl TryFromCv<&image::DynamicImage> for Mat {
             D::ImageRgba16(image) => image.try_into_cv()?,
             D::ImageRgb32F(image) => image.try_into_cv()?,
             D::ImageRgba32F(image) => image.try_into_cv()?,
-            image => bail!("the color type {:?} is not supported", image.color()),
+            image => anyhow::bail!("the color type {:?} is not supported", image.color()),
         };
         Ok(mat)
     }
@@ -84,7 +84,7 @@ impl TryFromCv<&Mat> for image::DynamicImage {
     fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
         let rows = from.rows();
         let cols = from.cols();
-        ensure!(
+        anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
@@ -100,7 +100,7 @@ impl TryFromCv<&Mat> for image::DynamicImage {
             (opencv::core::CV_8U, 3) => mat_to_image_buffer_rgb::<u8>(from, width, height).into(),
             (opencv::core::CV_16U, 3) => mat_to_image_buffer_rgb::<u16>(from, width, height).into(),
             (opencv::core::CV_32F, 3) => mat_to_image_buffer_rgb::<f32>(from, width, height).into(),
-            _ => bail!("Mat of type {} is not supported", from.type_name()),
+            _ => anyhow::bail!("Mat of type {} is not supported", from.type_name()),
         };
 
         Ok(image)
@@ -127,7 +127,7 @@ where
     fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
         let rows = from.rows();
         let cols = from.cols();
-        ensure!(
+        anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
@@ -137,11 +137,11 @@ where
         let width = cols as u32;
         let height = rows as u32;
 
-        ensure!(
+        anyhow::ensure!(
             n_channels == 1,
             "Unable to convert a multi-channel Mat to a gray image"
         );
-        ensure!(depth == T::DEPTH, "Subpixel type is not supported");
+        anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
 
         let image = mat_to_image_buffer_gray::<T>(from, width, height);
         Ok(image)
@@ -172,7 +172,7 @@ where
     fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
         let rows = from.rows();
         let cols = from.cols();
-        ensure!(
+        anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
@@ -182,11 +182,11 @@ where
         let width = cols as u32;
         let height = rows as u32;
 
-        ensure!(
+        anyhow::ensure!(
             n_channels == 3,
             "Expect 3 channels, but get {n_channels} channels"
         );
-        ensure!(depth == T::DEPTH, "Subpixel type is not supported");
+        anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
 
         let image = mat_to_image_buffer_rgb::<T>(from, width, height);
         Ok(image)
@@ -250,7 +250,6 @@ where
 mod tests {
     use crate::with_opencv::MatExt;
     use crate::TryIntoCv;
-    use anyhow::ensure;
     use anyhow::Result;
     use image;
     use itertools::iproduct;
@@ -271,7 +270,7 @@ mod tests {
                 let p1: u8 = *mat.at_2d(row as i32, col as i32)?;
                 let p2 = image[(col as u32, row as u32)].0[0];
                 let p3: u8 = *mat2.at_2d(row as i32, col as i32)?;
-                ensure!(p1 == p2 && p1 == p3);
+                anyhow::ensure!(p1 == p2 && p1 == p3);
                 anyhow::Ok(())
             })?;
         }
@@ -286,8 +285,8 @@ mod tests {
                 let p1: opencv::core::Point3_<u8> = *mat.at_2d(row as i32, col as i32)?;
                 let p2: image::Rgb<u8> = image[(col as u32, row as u32)];
                 let p3: opencv::core::Point3_<u8> = *mat2.at_2d(row as i32, col as i32)?;
-                ensure!(p1 == p3);
-                ensure!({
+                anyhow::ensure!(p1 == p3);
+                anyhow::ensure!({
                     let a1 = {
                         let opencv::core::Point3_ { x, y, z } = p1;
                         [x, y, z]

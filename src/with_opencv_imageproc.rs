@@ -44,7 +44,7 @@ mod tests {
     use approx::abs_diff_eq;
     use imageproc;
     use opencv::core as core_cv;
-    use crate::{common::ensure, FromCv, IntoCv};
+    use crate::{FromCv, IntoCv};
     use rand::prelude::*;
     use std::f64;
 
@@ -58,7 +58,7 @@ mod tests {
             {
                 let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
                 let imageproc_point = imageproc::point::Point::<f64>::from_cv(&cv_point);
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
                     "point conversion failed"
                 );
@@ -68,7 +68,7 @@ mod tests {
             {
                 let imageproc_point = imageproc::point::Point::<f64>::new(rng.gen(), rng.gen());
                 let cv_point = core_cv::Point2d::from_cv(&imageproc_point);
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),
                     "point conversion failed"
                 );
@@ -79,7 +79,7 @@ mod tests {
             {
                 let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
                 let imageproc_point: imageproc::point::Point<f64> = cv_point.into_cv();
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
                     "point conversion failed"
                 );
@@ -89,7 +89,7 @@ mod tests {
             {
                 let imageproc_point = imageproc::point::Point::<f64>::new(rng.gen(), rng.gen());
                 let cv_point: core_cv::Point2d = imageproc_point.into_cv();
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),
                     "point conversion failed"
                 );

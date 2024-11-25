@@ -1,6 +1,7 @@
+use crate::{common::*, FromCv, TryFromCv, TryIntoCv};
+use anyhow::{Context, Error, Result};
 use nalgebra::{self as na, geometry as geo};
 use opencv::{calib3d, core as core_cv, prelude::*};
-use crate::{common::*, FromCv, TryFromCv, TryIntoCv};
 
 // NOTE: for future maintainers: Since the matrixes need to accommodate any size Matrix, we are using na::OMatrix instead of SMatrix.
 // FIXME:
@@ -27,7 +28,8 @@ impl TryFromCv<&OpenCvPose<&core_cv::Point3d>> for geo::Isometry3<f64> {
     fn try_from_cv(pose: &OpenCvPose<&core_cv::Point3d>) -> Result<Self> {
         let OpenCvPose { rvec, tvec } = *pose;
         let rotation = {
-            let rvec_values = {  // 延长 rvec_values 的生命周期
+            let rvec_values = {
+                // 延长 rvec_values 的生命周期
                 let core_cv::Point3_ { x, y, z, .. } = *rvec;
                 vec![x, y, z]
             };
@@ -161,10 +163,9 @@ impl TryFromCv<&geo::Isometry3<f64>> for OpenCvPose<core_cv::Mat> {
         } = from;
 
         let rvec = {
-            let rotation_mat: Mat =
-                TryFromCv::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
+            let rotation_mat: Mat = TryFromCv::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = core_cv::Mat::zeros(3, 1, core_cv::CV_64FC1)?.to_mat()?;
-            calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut core_cv::Mat::default())?;
+            calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut opencv::core::no_array())?;
             rvec_mat
         };
         let tvec = core_cv::Mat::from_slice(&[translation.x, translation.y, translation.z])?.try_clone()?;
@@ -231,7 +232,7 @@ where
                 .map(|size| size == shape.width as usize)
                 .unwrap_or(true);
             let has_same_shape = check_height && check_width;
-            ensure!(has_same_shape, "input and output matrix shapes differ");
+            anyhow::ensure!(has_same_shape, "input and output matrix shapes differ");
         }
 
         let rows: Result<Vec<&[N]>, _> = (0..shape.height)
@@ -287,7 +288,16 @@ where
             }
         }
 
-        let mat = core_cv::Mat::from_slice(&data)?.reshape(1, nrows as i32)?.try_clone()?;
+        // let mat = core_cv::Mat::from_slice(&data)?.reshape(1, nrows as i32)?.try_clone()?;
+        let typ = opencv::core::CV_64FC1;
+        let mat = unsafe {
+            Mat::new_rows_cols_with_data_unsafe_def(
+                nrows as i32,
+                ncols as i32,
+                typ,
+                data.as_ptr() as *mut _,
+            )?
+        };
         Ok(mat)
     }
 }
@@ -405,11 +415,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::{U2, U3};
-    use opencv::core as core_cv;
     use crate::{IntoCv, TryIntoCv};
     use anyhow::Result;
     use approx::abs_diff_eq;
+    use nalgebra::{U2, U3};
+    use opencv::core as core_cv;
     use rand::prelude::*;
     use std::f64;
 
@@ -422,7 +432,7 @@ mod tests {
             {
                 let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
                 let na_point = na::Point2::<f64>::from_cv(&cv_point);
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, na_point.x) && abs_diff_eq!(cv_point.y, na_point.y),
                     "point conversion failed"
                 );
@@ -432,7 +442,7 @@ mod tests {
             {
                 let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
                 let na_point: na::Point2<f64> = cv_point.into_cv();
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, na_point.x) && abs_diff_eq!(cv_point.y, na_point.y),
                     "point conversion failed"
                 );
@@ -440,7 +450,7 @@ mod tests {
 
             // TryFromCv
             {
-                let na_mat = na::DMatrix::<f64>::from_vec(
+                let na_mat = na::DMatrix::<f32>::from_vec(
                     2,
                     3,
                     vec![
@@ -453,20 +463,20 @@ mod tests {
                     ],
                 );
                 let cv_mat = core_cv::Mat::try_from_cv(&na_mat)?;
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_mat.at_2d(0, 0)?, na_mat.get((0, 0)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(0, 1)?, na_mat.get((0, 1)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(0, 2)?, na_mat.get((0, 2)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 0)?, na_mat.get((1, 0)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 1)?, na_mat.get((1, 1)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 2)?, na_mat.get((1, 2)).unwrap()),
-                    "matrix conversion failed"
+                    "TryFromCv : matrix conversion failed"
                 );
             }
 
             // TryIntoCv
             {
-                let na_mat = na::DMatrix::<f64>::from_vec(
+                let na_mat = na::DMatrix::<f32>::from_vec(
                     2,
                     3,
                     vec![
@@ -479,14 +489,14 @@ mod tests {
                     ],
                 );
                 let cv_mat: core_cv::Mat = (&na_mat).try_into_cv()?;
-                ensure!(
+                anyhow::ensure!(
                     abs_diff_eq!(cv_mat.at_2d(0, 0)?, na_mat.get((0, 0)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(0, 1)?, na_mat.get((0, 1)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(0, 2)?, na_mat.get((0, 2)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 0)?, na_mat.get((1, 0)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 1)?, na_mat.get((1, 1)).unwrap())
                         && abs_diff_eq!(cv_mat.at_2d(1, 2)?, na_mat.get((1, 2)).unwrap()),
-                    "matrix conversion failed"
+                    "TryIntoCv : matrix conversion failed"
                 );
             }
         }
@@ -499,7 +509,7 @@ mod tests {
         let (nrows, ncols) = input.shape();
         let output = core_cv::Mat::try_from_cv(input)?;
         let output_shape = output.size()?;
-        ensure!(
+        anyhow::ensure!(
             output.channels() == 1
                 && nrows == output_shape.height as usize
                 && ncols == output_shape.width as usize,
@@ -508,18 +518,18 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn matrix_opencv_to_nalgebra_test() -> Result<()> {
-    //     let input = Mat::from_slice_2d(&[&[1, 2, 3], &[4, 5, 6]])?;
-    //     let input_shape = input.size()?;
-    //     let output = na::OMatrix::<i32, U2, U3>::try_from(input)?;
-    //     ensure!(
-    //         output.nrows() == input_shape.height as usize
-    //             && output.ncols() == input_shape.width as usize,
-    //         "the shape does not match"
-    //     );
-    //     Ok(())
-    // }
+    #[test]
+    fn matrix_opencv_to_nalgebra_test() -> Result<()> {
+        let input = Mat::from_slice_2d(&[&[1, 2, 3], &[4, 5, 6]])?;
+        let input_shape = input.size()?;
+        let output = na::OMatrix::<i32, U2, U3>::try_from_cv(input)?;
+        anyhow::ensure!(
+            output.nrows() == input_shape.height as usize
+                && output.ncols() == input_shape.width as usize,
+            "the shape does not match"
+        );
+        Ok(())
+    }
 
     #[test]
     fn rvec_tvec_conversion() -> Result<()> {
@@ -538,8 +548,8 @@ mod tests {
             let pose = OpenCvPose::<Mat>::try_from_cv(orig_isometry)?;
             let recovered_isometry = na::Isometry3::<f64>::try_from_cv(pose)?;
 
-            ensure!(
-                (orig_isometry.to_homogeneous() - recovered_isometry.to_homogeneous()).norm()<= 1e-6,
+            anyhow::ensure!(
+                (orig_isometry.to_homogeneous() - recovered_isometry.to_homogeneous()).norm() <= 1e-6,
                 "the recovered isometry is not consistent the original isometry"
             );
         }

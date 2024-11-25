@@ -3,6 +3,7 @@ use opencv::{core as core_cv, prelude::*};
 use crate::with_opencv::MatExt as _;
 use crate::with_opencv::OpenCvElement;
 use crate::{common::*, TryFromCv, TryIntoCv};
+use anyhow::{Context, Result};
 
 impl<'a, A, D> TryFromCv<&'a core_cv::Mat> for nd::ArrayView<'a, A, D>
 where
@@ -53,7 +54,7 @@ where
     S: nd::RawData<Elem = A> + nd::Data,
     D: nd::Dimension,
 {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from_cv(from: &nd::ArrayBase<S, D>) -> Result<Self> {
         let shape_with_channels: Vec<i32> = from.shape().iter().map(|&sz| sz as i32).collect();
@@ -76,7 +77,7 @@ where
     S: nd::RawData<Elem = A> + nd::Data,
     D: nd::Dimension,
 {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from_cv(from: nd::ArrayBase<S, D>) -> Result<Self> {
         (&from).try_into_cv()
@@ -126,9 +127,9 @@ mod tests {
                     // preserves the values.
                     let e4: f32 = *out_mat.at_nd(&index_cv)?;
 
-                    ensure!(e1 == e2);
-                    ensure!(e1 == e3);
-                    ensure!(e1 == e4);
+                    anyhow::ensure!(e1 == e2);
+                    anyhow::ensure!(e1 == e3);
+                    anyhow::ensure!(e1 == e4);
                     anyhow::Ok(())
                 })?;
         }
