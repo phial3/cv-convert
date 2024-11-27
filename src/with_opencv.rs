@@ -1,7 +1,12 @@
 use crate::{common::*, TryFromCv};
 use opencv::{core as core_cv, prelude::*};
 use half::f16;
-use anyhow::{ensure, Context, Error, Result};
+use anyhow::{Context, Error, Result};
+use std::{
+    borrow::Borrow,
+    ops::{Deref, DerefMut},
+    slice,
+};
 
 pub use element_type::*;
 mod element_type {
@@ -85,8 +90,8 @@ mod mat_ext {
         where
             T: OpenCvElement,
         {
-            ensure!(self.depth() == T::DEPTH, "element type mismatch");
-            ensure!(self.is_continuous(), "Mat data must be continuous");
+            anyhow::ensure!(self.depth() == T::DEPTH, "element type mismatch");
+            anyhow::ensure!(self.is_continuous(), "Mat data must be continuous");
 
             let numel = self.numel();
             let ptr = self.ptr(0)? as *const T;
@@ -130,7 +135,7 @@ where
 
     fn try_from_cv(from: &core_cv::Mat) -> Result<Self> {
         let slice = from.data_typed::<T>()?;
-        ensure!(slice.len() == 2, "invalid length");
+        anyhow::ensure!(slice.len() == 2, "invalid length");
         let point = Self {
             x: slice[0],
             y: slice[1],
@@ -158,7 +163,7 @@ where
 
     fn try_from_cv(from: &core_cv::Mat) -> Result<Self> {
         let slice = from.data_typed::<T>()?;
-        ensure!(slice.len() == 3, "invalid length");
+        anyhow::ensure!(slice.len() == 3, "invalid length");
         let point = Self {
             x: slice[0],
             y: slice[1],

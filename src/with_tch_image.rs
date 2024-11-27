@@ -1,5 +1,5 @@
-use crate::{common::*, FromCv, IntoCv, TchTensorAsImage, TchTensorImageShape, TryFromCv};
-use anyhow::{bail, ensure, Context, Error, Result};
+use crate::{FromCv, IntoCv, TchTensorAsImage, TchTensorImageShape, TryFromCv};
+use anyhow::{Error, Result};
 use image;
 use std::ops::Deref;
 use tch;
@@ -46,7 +46,7 @@ impl TryFromCv<&image::DynamicImage> for TchTensorAsImage {
             D::ImageRgba8(image) => image.into_cv(),
             D::ImageRgb32F(image) => image.into_cv(),
             D::ImageRgba32F(image) => image.into_cv(),
-            _ => bail!("the color type {:?} is not supported", from.color()),
+            _ => anyhow::bail!("the color type {:?} is not supported", from.color()),
         };
         Ok(tensor)
     }

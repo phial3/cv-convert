@@ -3,6 +3,9 @@
 Type conversions among famous Rust computer vision libraries. It
 supports the following crates:
 
+reference:
+https://github.com/jerry73204/rust-cv-convert
+
 - [image](https://crates.io/crates/image)
 - [imageproc](https://crates.io/crates/imageproc)
 - [nalgebra](https://crates.io/crates/nalgebra)

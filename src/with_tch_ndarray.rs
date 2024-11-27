@@ -1,7 +1,7 @@
+use crate::{FromCv, TryFromCv};
+use anyhow::{Context, Error, Result};
 use ndarray as nd;
 use tch;
-use crate::{common::*, FromCv, TryFromCv};
-use anyhow::{bail, ensure, Context, Error, Result};
 
 use to_ndarray_shape::*;
 mod to_ndarray_shape {
@@ -32,7 +32,7 @@ mod to_ndarray_shape {
         type Error = Error;
 
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error> {
-            ensure!(
+            anyhow::ensure!(
                 self.is_empty(),
                 "empty empty tensor dimension, but get {:?}",
                 self
@@ -48,7 +48,7 @@ mod to_ndarray_shape {
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error> {
             let shape = match self.as_slice() {
                 &[s0] => [s0 as usize],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -61,7 +61,7 @@ mod to_ndarray_shape {
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error> {
             let shape = match self.as_slice() {
                 &[s0, s1] => [s0 as usize, s1 as usize],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -74,7 +74,7 @@ mod to_ndarray_shape {
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error> {
             let shape = match self.as_slice() {
                 &[s0, s1, s2] => [s0 as usize, s1 as usize, s2 as usize],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -87,7 +87,7 @@ mod to_ndarray_shape {
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error> {
             let shape = match self.as_slice() {
                 &[s0, s1, s2, s3] => [s0 as usize, s1 as usize, s2 as usize, s3 as usize],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -106,7 +106,7 @@ mod to_ndarray_shape {
                     s3 as usize,
                     s4 as usize,
                 ],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -126,7 +126,7 @@ mod to_ndarray_shape {
                     s4 as usize,
                     s5 as usize,
                 ],
-                other => bail!("expect one dimension, but get {:?}", other),
+                other =>anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }
@@ -144,7 +144,7 @@ where
 
     fn try_from_cv(from: tch::Tensor) -> Result<Self, Self::Error> {
         // check element type consistency
-        ensure!(
+        anyhow::ensure!(
             from.kind() == A::KIND,
             "tensor with kind {:?} cannot converted to array with type {:?}",
             from.kind(),
@@ -228,7 +228,7 @@ mod tests {
                 lhs == rhs
             });
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array0
@@ -237,7 +237,7 @@ mod tests {
             let array: nd::Array0<f32> = (&tensor).try_into_cv()?;
             let lhs: f32 = tensor.try_into().unwrap();
             let rhs = array[()];
-            ensure!(lhs == rhs, "value mismatch");
+            anyhow::ensure!(lhs == rhs, "value mismatch");
         }
 
         // Array1
@@ -252,7 +252,7 @@ mod tests {
                 lhs == rhs
             });
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array2
@@ -269,7 +269,7 @@ mod tests {
                 lhs == rhs
             });
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array3
@@ -287,7 +287,7 @@ mod tests {
                 lhs == rhs
             });
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array4
@@ -307,7 +307,7 @@ mod tests {
                     lhs == rhs
                 });
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array5
@@ -335,7 +335,7 @@ mod tests {
                 },
             );
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         // Array6
@@ -365,7 +365,7 @@ mod tests {
                 },
             );
 
-            ensure!(is_correct, "value mismatch");
+            anyhow::ensure!(is_correct, "value mismatch");
         }
 
         Ok(())
@@ -388,7 +388,7 @@ mod tests {
             && izip!(array.shape().iter().cloned(), tensor.size().iter().cloned())
                 .all(|(lhs, rhs)| lhs == rhs as usize);
 
-        ensure!(is_shape_correct, "shape mismatch");
+        anyhow::ensure!(is_shape_correct, "shape mismatch");
 
         let is_value_correct = iproduct!(0..s0, 0..s1, 0..s2).all(|(i0, i1, i2)| {
             let lhs = array[(i2, i1, i0)];
@@ -398,7 +398,7 @@ mod tests {
                 .unwrap();
             lhs == rhs
         });
-        ensure!(is_value_correct, "value mismatch");
+        anyhow::ensure!(is_value_correct, "value mismatch");
 
         Ok(())
     }

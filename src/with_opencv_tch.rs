@@ -1,9 +1,15 @@
-use crate::{common::*, TchTensorAsImage, TchTensorImageShape, TryFromCv, TryIntoCv};
-use anyhow::{ensure, Context, Error, Result};
+use crate::{TchTensorAsImage, TchTensorImageShape, TryFromCv, TryIntoCv};
+use anyhow::{Context, Error, Result};
 use opencv::{core as cv, prelude::*};
-use std::borrow::Cow;
+use std::{
+    borrow::{Borrow, Cow},
+    mem::ManuallyDrop,
+    ops::{Deref, DerefMut},
+    slice,
+};
 use tch;
 use utils::*;
+
 mod utils {
     use super::*;
 
@@ -120,7 +126,7 @@ impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
     type Error = Error;
 
     fn try_from_cv(from: &'a cv::Mat) -> Result<Self, Self::Error> {
-        ensure!(from.is_continuous(), "non-continuous Mat is not supported");
+        anyhow::ensure!(from.is_continuous(), "non-continuous Mat is not supported");
 
         let TchTensorMeta { kind, shape } = opencv_mat_to_tch_meta_nd(&from)?;
         let strides = {
@@ -413,13 +419,13 @@ mod tests {
                             .collect();
                         let tch_val: f32 = before.f_index(&tch_index)?.try_into().unwrap();
                         let mat_val: f32 = *mat.at_nd(&cv_index)?;
-                        ensure!(tch_val == mat_val, "value mismatch");
+                        anyhow::ensure!(tch_val == mat_val, "value mismatch");
                         Ok(())
                     })?;
             }
 
             // compare original and recovered Tensor values
-            ensure!(before == after, "value mismatch",);
+            anyhow::ensure!(before == after, "value mismatch",);
         }
 
         Ok(())
@@ -443,15 +449,15 @@ mod tests {
                 for col in 0..width {
                     let pixel: &cv::Vec3f = mat.at_2d(row as i32, col as i32)?;
                     let [red, green, blue] = **pixel;
-                    ensure!(
+                    anyhow::ensure!(
                         f32::try_from(before.i((0, row, col))).unwrap() == red,
                         "value mismatch"
                     );
-                    ensure!(
+                    anyhow::ensure!(
                         f32::try_from(before.i((1, row, col))).unwrap() == green,
                         "value mismatch"
                     );
-                    ensure!(
+                    anyhow::ensure!(
                         f32::try_from(before.i((2, row, col))).unwrap() == blue,
                         "value mismatch"
                     );
@@ -462,13 +468,13 @@ mod tests {
             {
                 let before_size = before.size();
                 let after_size = after.size();
-                ensure!(
+                anyhow::ensure!(
                     before_size == after_size,
                     "size mismatch: {:?} vs. {:?}",
                     before_size,
                     after_size
                 );
-                ensure!(before == after, "value mismatch");
+                anyhow::ensure!(before == after, "value mismatch");
             }
         }
         Ok(())
@@ -489,8 +495,8 @@ mod tests {
 
             // compare original and recovered Tensor values
             {
-                ensure!(after.size() == [height, width, channel], "size mismatch",);
-                ensure!(&before.f_permute(&[1, 2, 0])? == &*after, "value mismatch");
+                anyhow::ensure!(after.size() == [height, width, channel], "size mismatch",);
+                anyhow::ensure!(&before.f_permute(&[1, 2, 0])? == &*after, "value mismatch");
             }
         }
         Ok(())

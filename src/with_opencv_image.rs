@@ -1,5 +1,5 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
-use crate::{common::*, TryFromCv, TryIntoCv};
+use crate::{TryFromCv, TryIntoCv};
 use anyhow::{Context, Error, Result};
 use image;
 use opencv::{core::Mat, prelude::*};

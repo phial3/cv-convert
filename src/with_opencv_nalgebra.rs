@@ -1,7 +1,7 @@
-use crate::{common::*, FromCv, TryFromCv, TryIntoCv};
+use crate::{FromCv, TryFromCv, TryIntoCv};
 use anyhow::{Context, Error, Result};
 use nalgebra::{self as na, geometry as geo};
-use opencv::{calib3d, core as core_cv, prelude::*};
+use opencv::{core as core_cv, calib3d, prelude::*};
 
 // NOTE: for future maintainers: Since the matrixes need to accommodate any size Matrix, we are using na::OMatrix instead of SMatrix.
 // FIXME:

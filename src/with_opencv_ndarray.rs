@@ -1,9 +1,8 @@
+use crate::with_opencv::{MatExt as _, OpenCvElement};
+use crate::{TryFromCv, TryIntoCv};
+use anyhow::{Context, Result};
 use ndarray as nd;
 use opencv::{core as core_cv, prelude::*};
-use crate::with_opencv::MatExt as _;
-use crate::with_opencv::OpenCvElement;
-use crate::{common::*, TryFromCv, TryIntoCv};
-use anyhow::{Context, Result};
 
 impl<'a, A, D> TryFromCv<&'a core_cv::Mat> for nd::ArrayView<'a, A, D>
 where

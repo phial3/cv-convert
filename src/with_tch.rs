@@ -1,7 +1,12 @@
-use tch;
-use crate::{common::*, FromCv, TryFromCv};
+use crate::{FromCv, TryFromCv};
+use anyhow::{Context, Error, Result};
 use slice_of_array::prelude::*;
-use anyhow::{bail, ensure, Context, Error, Result};
+use std::{
+    borrow::Borrow,
+    ops::{Deref, DerefMut},
+    slice,
+};
+use tch;
 
 macro_rules! impl_from_array {
     ($elem:ty) => {
@@ -11,9 +16,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(from.size() == &[N as i64]);
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(from.size() == &[N as i64]);
                 let slice: &[$elem] =
                     unsafe { slice::from_raw_parts(from.data_ptr() as *mut $elem, N) };
                 Ok(slice.as_array())
@@ -26,9 +31,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(from.size() == &[N1 as i64, N2 as i64]);
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64]);
                 let slice: &[$elem] =
                     unsafe { slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2) };
                 Ok(slice.nest().as_array())
@@ -41,9 +46,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64]);
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64]);
                 let slice: &[$elem] =
                     unsafe { slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3) };
                 Ok(slice.nest().nest().as_array())
@@ -56,9 +61,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64]);
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64]);
                 let slice: &[$elem] = unsafe {
                     slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4)
                 };
@@ -78,9 +83,11 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]);
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(
+                    from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]
+                );
                 let slice: &[$elem] = unsafe {
                     slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4 * N5)
                 };
@@ -101,9 +108,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.device() == tch::Device::Cpu);
-                ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
-                ensure!(
+                anyhow::ensure!(from.device() == tch::Device::Cpu);
+                anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
+                anyhow::ensure!(
                     from.size()
                         == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64, N6 as i64]
                 );
@@ -123,7 +130,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.size() == &[N as i64]);
+                anyhow::ensure!(from.size() == &[N as i64]);
                 let mut array = [Default::default(); N];
                 from.f_copy_data(array.as_mut(), N)?;
                 Ok(array)
@@ -134,7 +141,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.size() == &[N1 as i64, N2 as i64]);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64]);
                 let mut array = [[Default::default(); N2]; N1];
                 from.f_copy_data(array.flat_mut(), N1 * N2)?;
                 Ok(array)
@@ -147,7 +154,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64]);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64]);
                 let mut array = [[[Default::default(); N3]; N2]; N1];
                 from.f_copy_data(array.flat_mut().flat_mut(), N1 * N2 * N3)?;
                 Ok(array)
@@ -160,7 +167,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64]);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64]);
                 let mut array = [[[[Default::default(); N4]; N3]; N2]; N1];
                 from.f_copy_data(array.flat_mut().flat_mut().flat_mut(), N1 * N2 * N3 * N4)?;
                 Ok(array)
@@ -178,7 +185,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]);
+                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]);
                 let mut array = [[[[[Default::default(); N5]; N4]; N3]; N2]; N1];
                 from.f_copy_data(
                     array.flat_mut().flat_mut().flat_mut().flat_mut(),
@@ -200,13 +207,18 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                ensure!(
+               anyhow:: ensure!(
                     from.size()
                         == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64, N6 as i64]
                 );
                 let mut array = [[[[[[Default::default(); N6]; N5]; N4]; N3]; N2]; N1];
                 from.f_copy_data(
-                    array.as_flattened_mut().flat_mut().flat_mut().flat_mut().flat_mut(),
+                    array
+                        .as_flattened_mut()
+                        .flat_mut()
+                        .flat_mut()
+                        .flat_mut()
+                        .flat_mut(),
                     N1 * N2 * N3 * N4 * N5 * N6,
                 )?;
                 Ok(array)
@@ -418,8 +430,7 @@ mod tensor_as_image {
 
     /// An 2D image [Tensor](tch::Tensor) with dimension order.
     #[derive(Debug)]
-    pub struct TchTensorAsImage
-    {
+    pub struct TchTensorAsImage {
         pub(crate) tensor: tch::Tensor,
         pub(crate) kind: TchTensorImageShape,
     }
@@ -433,11 +444,10 @@ mod tensor_as_image {
         Cwh,
     }
 
-    impl TchTensorAsImage
-    {
+    impl TchTensorAsImage {
         pub fn new(tensor: tch::Tensor, kind: TchTensorImageShape) -> Result<Self> {
             let ndim = tensor.dim();
-            ensure!(
+            anyhow::ensure!(
                 ndim == 3,
                 "the tensor must have 3 dimensions, but get {}",
                 ndim
@@ -459,8 +469,8 @@ mod tensor_as_image {
 mod tests {
     use super::*;
     use crate::TryIntoCv;
-    use tch;
     use rand::prelude::*;
+    use tch;
 
     #[test]
     fn tensor_to_array_ref() {
