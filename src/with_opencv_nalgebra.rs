@@ -1,7 +1,7 @@
 use crate::{FromCv, TryFromCv, TryIntoCv};
 use anyhow::{Context, Error, Result};
 use nalgebra::{self as na, geometry as geo};
-use opencv::{core as core_cv, calib3d, prelude::*};
+use opencv::{calib3d, core as core_cv, prelude::*};
 
 // NOTE: for future maintainers: Since the matrixes need to accommodate any size Matrix, we are using na::OMatrix instead of SMatrix.
 // FIXME:
@@ -280,24 +280,15 @@ where
         let nrows = from.nrows();
         let ncols = from.ncols();
 
-        // 手动将矩阵内容转换为行优先顺序的 Vec
-        let mut data = Vec::with_capacity(nrows * ncols);
-        for j in 0..ncols {
-            for i in 0..nrows {
-                data.push(from[(i, j)].clone()); // 克隆每个元素以模拟转置
+        // 手动实现矩阵转置
+        let mut transposed = vec![from[0]; nrows * ncols];
+        for i in 0..nrows {
+            for j in 0..ncols {
+                transposed[j * nrows + i] = from[i * ncols + j];
             }
         }
 
-        // let mat = core_cv::Mat::from_slice(&data)?.reshape(1, nrows as i32)?.try_clone()?;
-        let typ = opencv::core::CV_64FC1;
-        let mat = unsafe {
-            Mat::new_rows_cols_with_data_unsafe_def(
-                nrows as i32,
-                ncols as i32,
-                typ,
-                data.as_ptr() as *mut _,
-            )?
-        };
+        let mat = core_cv::Mat::from_slice(&transposed)?.reshape(1, nrows as i32)?.try_clone()?;
         Ok(mat)
     }
 }
@@ -450,10 +441,10 @@ mod tests {
 
             // TryFromCv
             {
-                let na_mat = na::DMatrix::<f32>::from_vec(
+                let na_mat = na::DMatrix::<f64>::from_row_slice(
                     2,
                     3,
-                    vec![
+                    &[
                         rng.gen(),
                         rng.gen(),
                         rng.gen(),
@@ -464,12 +455,12 @@ mod tests {
                 );
                 let cv_mat = core_cv::Mat::try_from_cv(&na_mat)?;
                 anyhow::ensure!(
-                    abs_diff_eq!(cv_mat.at_2d(0, 0)?, na_mat.get((0, 0)).unwrap())
-                        && abs_diff_eq!(cv_mat.at_2d(0, 1)?, na_mat.get((0, 1)).unwrap())
-                        && abs_diff_eq!(cv_mat.at_2d(0, 2)?, na_mat.get((0, 2)).unwrap())
-                        && abs_diff_eq!(cv_mat.at_2d(1, 0)?, na_mat.get((1, 0)).unwrap())
-                        && abs_diff_eq!(cv_mat.at_2d(1, 1)?, na_mat.get((1, 1)).unwrap())
-                        && abs_diff_eq!(cv_mat.at_2d(1, 2)?, na_mat.get((1, 2)).unwrap()),
+                    abs_diff_eq!(*cv_mat.at_2d::<f64>(0, 0)?, na_mat.get((0, 0)).unwrap())
+                        && abs_diff_eq!(*cv_mat.at_2d::<f64>(0, 1)?, na_mat.get((0, 1)).unwrap())
+                        && abs_diff_eq!(*cv_mat.at_2d::<f64>(0, 2)?, na_mat.get((0, 2)).unwrap())
+                        && abs_diff_eq!(*cv_mat.at_2d::<f64>(1, 0)?, na_mat.get((1, 0)).unwrap())
+                        && abs_diff_eq!(*cv_mat.at_2d::<f64>(1, 1)?, na_mat.get((1, 1)).unwrap())
+                        && abs_diff_eq!(*cv_mat.at_2d::<f64>(1, 2)?, na_mat.get((1, 2)).unwrap()),
                     "TryFromCv : matrix conversion failed"
                 );
             }
