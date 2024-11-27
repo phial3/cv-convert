@@ -211,8 +211,7 @@ impl TryFromCv<&cv::Mat> for tch::Tensor {
 
         let tensor = unsafe {
             let ptr = from.ptr(0)? as *const u8;
-            let slice_size =
-                shape.iter().cloned().product::<i64>() as usize * kind.elt_size_in_bytes();
+            let slice_size = shape.iter().cloned().product::<i64>() as usize * kind.elt_size_in_bytes();
             let slice = slice::from_raw_parts(ptr, slice_size);
             tch::Tensor::f_from_data_size(slice, shape.as_ref(), kind)?
         };
@@ -342,15 +341,10 @@ impl TryFromCv<&tch::Tensor> for cv::Mat {
         let depth = tch_kind_to_opencv_depth(tensor.f_kind()?)?;
 
         // 检查张量类型的通道数
-        let _typ = cv::CV_MAKETYPE(depth, 1);
+        let typ = cv::CV_MAKETYPE(depth, 1);
 
         // 使用 unsafe 块从指针生成 Mat
-        let mat = unsafe {
-            Mat::new_nd_with_data(
-                &size,
-                std::slice::from_raw_parts(tensor.data_ptr() as *const u8, tensor.numel()),
-            )?
-        };
+        let mat = unsafe { cv::Mat::new_nd_with_data_unsafe(&size, typ, tensor.data_ptr(), None)? };
 
         Ok(mat.try_clone()?)
     }
@@ -439,9 +433,7 @@ mod tests {
             let width = 8;
 
             let before = Tensor::randn(&[channels, height, width], tch::kind::FLOAT_CPU);
-            let mat: cv::Mat =
-                TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?
-                    .try_into_cv()?;
+            let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = Tensor::try_from_cv(&mat)?.f_permute(&[2, 0, 1])?; // hwc -> chw
 
             // compare Tensor and Mat values
@@ -449,18 +441,10 @@ mod tests {
                 for col in 0..width {
                     let pixel: &cv::Vec3f = mat.at_2d(row as i32, col as i32)?;
                     let [red, green, blue] = **pixel;
-                    anyhow::ensure!(
-                        f32::try_from(before.i((0, row, col))).unwrap() == red,
-                        "value mismatch"
-                    );
-                    anyhow::ensure!(
-                        f32::try_from(before.i((1, row, col))).unwrap() == green,
-                        "value mismatch"
-                    );
-                    anyhow::ensure!(
-                        f32::try_from(before.i((2, row, col))).unwrap() == blue,
-                        "value mismatch"
-                    );
+                    println!("pixel[{}*{}]: [{},{},{}]", row, col, red, green, blue);
+                    anyhow::ensure!(f32::try_from(before.i((0, row, col))).unwrap() == red,"value mismatch");
+                    anyhow::ensure!(f32::try_from(before.i((1, row, col))).unwrap() == green,"value mismatch");
+                    anyhow::ensure!(f32::try_from(before.i((2, row, col))).unwrap() == blue,"value mismatch");
                 }
             }
 
@@ -488,11 +472,9 @@ mod tests {
             let width = 8;
 
             let before = Tensor::randn(&[channel, height, width], tch::kind::FLOAT_CPU);
-            let mat: cv::Mat =
-                TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?
-                    .try_into_cv()?;
+            let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = OpenCvMatAsTchTensor::try_from_cv(&mat)?; // in hwc
-
+            println!("after={:?}", &*after);
             // compare original and recovered Tensor values
             {
                 anyhow::ensure!(after.size() == [height, width, channel], "size mismatch",);
