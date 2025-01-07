@@ -28,15 +28,15 @@ features. For example, the feature `nalgebra_0-30` enables nalgebra
 version = 'x.y.z'  # Please look up the recent version on crates.io
 default-features = false
 features = [
-    'image_0-24',
-    'opencv_0-84',
-    'tch_0-13',
-    'nalgebra_0-32',
-    'ndarray_0-15',
+    'image',
+    'opencv',
+    'tch',
+    'nalgebra',
+    'ndarray',
 ]
 ```
 
-The minimum supported `rustc` is 1.51. You may use older versions of
+The minimum supported `rustc` is 1.81. You may use older versions of
 the crate (>=0.6) in order to use `rustc` versions that do not support
 const-generics.
 
@@ -44,55 +44,27 @@ const-generics.
 
 ### opencv
 
-- `opencv_0-84`
-- `opencv_0-83`
-- `opencv_0-82`
-- `opencv_0-81`
-- `opencv_0-80`
-- `opencv_0-79`
-- `opencv_0-78`
-- `opencv_0-77`
-- `opencv_0-76`
-- `opencv_0-75`
-- `opencv_0-74`
-- `opencv_0-73`
-- `opencv_0-72`
-- `opencv_0-71`
-- `opencv_0-70`
-- `opencv_0-69`
-- `opencv_0-68`
-- `opencv_0-67`
-- `opencv_0-66`
-- `opencv_0-65`
-- `opencv_0-64`
-- `opencv_0-63`
+- `opencv 0.93`
 
 ### image
 
-- `image_0-24`
-- `image_0-23`
+- `image 0.25`
 
 ### imageproc
 
-- `imageproc_0-23`
+- `imageproc 0.25`
 
 ### ndarray
 
-- `ndarray_0-15`
+- `ndarray 0.16`
 
 ### nalgebra
 
-- `nalgebra_0-32`
-- `nalgebra_0-31`
-- `nalgebra_0-30`
-- `nalgebra_0-29`
-- `nalgebra_0-28`
-- `nalgebra_0-27`
-- `nalgebra_0-26`
+- `nalgebra 0.33`
 
 ### tch
 
-- `tch_0-13`
+- `tch 0.13`
 
 ## Usage
 
