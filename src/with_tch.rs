@@ -1,12 +1,16 @@
-use crate::{FromCv, TryFromCv};
-use anyhow::{Context, Error, Result};
-use slice_of_array::prelude::*;
 use std::{
     borrow::Borrow,
     ops::{Deref, DerefMut},
     slice,
 };
+
+use crate::{
+    common::prelude::*,
+    FromCv, TryFromCv
+};
+
 use tch;
+use anyhow::{Context, Error, Result};
 
 macro_rules! impl_from_array {
     ($elem:ty) => {
@@ -484,10 +488,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 2 dim
@@ -498,10 +502,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 3 dim
@@ -512,10 +516,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 4 dim
@@ -526,10 +530,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 4 dim
@@ -540,10 +544,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 5 dim
@@ -554,10 +558,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
 
         // 6 dim
@@ -568,10 +572,10 @@ mod tests {
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
-            assert!(array == input);
+            assert_eq!(array, input);
 
             let array_ref: &T = (&tensor).try_into_cv().unwrap();
-            assert!(array_ref == input.as_ref());
+            assert_eq!(array_ref, input.as_ref());
         }
     }
 }

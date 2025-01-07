@@ -1,15 +1,20 @@
-use crate::{TchTensorAsImage, TchTensorImageShape, TryFromCv, TryIntoCv};
-use anyhow::{Context, Error, Result};
-use opencv::{core as cv, prelude::*};
 use std::{
     borrow::{Borrow, Cow},
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     slice,
 };
-use tch;
-use utils::*;
 
+use crate::{
+    TchTensorAsImage, TchTensorImageShape,
+    TryFromCv, TryIntoCv
+};
+
+use tch;
+use anyhow::{Context, Error, Result};
+use opencv::{core as cv, prelude::*};
+
+use utils::{TchImageMeta, TchTensorMeta};
 mod utils {
     use super::*;
 
@@ -78,7 +83,7 @@ mod utils {
             .chain([mat.channels() as i64])
             .collect();
         let kind = opencv_depth_to_tch_kind(mat.depth())?;
-        Ok(TchTensorMeta { shape, kind })
+        Ok(TchTensorMeta { kind, shape })
     }
 }
 
@@ -128,7 +133,7 @@ impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
     fn try_from_cv(from: &'a cv::Mat) -> Result<Self, Self::Error> {
         anyhow::ensure!(from.is_continuous(), "non-continuous Mat is not supported");
 
-        let TchTensorMeta { kind, shape } = opencv_mat_to_tch_meta_nd(&from)?;
+        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(&from)?;
         let strides = {
             let mut strides: Vec<_> = shape
                 .iter()
@@ -145,8 +150,7 @@ impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
         };
 
         let tensor = unsafe {
-            let ptr = from.ptr(0)? as *const u8;
-            tch::Tensor::f_from_blob(ptr, &shape, &strides, kind, tch::Device::Cpu)?
+            tch::Tensor::from_blob(from.data(), shape.as_ref(), &strides, kind, tch::Device::Cpu)
         };
 
         Ok(Self {
@@ -172,12 +176,11 @@ impl TryFromCv<&cv::Mat> for TchTensorAsImage {
             width,
             height,
             channels,
-        } = opencv_mat_to_tch_meta_2d(&*from)?;
+        } = utils::opencv_mat_to_tch_meta_2d(&from.try_clone().unwrap())?;
 
         let tensor = unsafe {
-            let ptr = from.ptr(0)? as *const u8;
             let slice_size = (height * width * channels) as usize * kind.elt_size_in_bytes();
-            let slice = slice::from_raw_parts(ptr, slice_size);
+            let slice = slice::from_raw_parts(from.data(), slice_size);
             tch::Tensor::f_from_data_size(slice, &[height, width, channels], kind)?
         };
 
@@ -207,12 +210,11 @@ impl TryFromCv<&cv::Mat> for tch::Tensor {
             Cow::Owned(mat.try_clone()?)
         };
 
-        let TchTensorMeta { kind, shape } = opencv_mat_to_tch_meta_nd(&*from)?;
+        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(&*from)?;
 
         let tensor = unsafe {
-            let ptr = from.ptr(0)? as *const u8;
             let slice_size = shape.iter().cloned().product::<i64>() as usize * kind.elt_size_in_bytes();
-            let slice = slice::from_raw_parts(ptr, slice_size);
+            let slice = slice::from_raw_parts(from.data(), slice_size);
             tch::Tensor::f_from_data_size(slice, shape.as_ref(), kind)?
         };
 
@@ -232,24 +234,19 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
     type Error = Error;
 
     fn try_from_cv(from: &TchTensorAsImage) -> Result<Self, Self::Error> {
-        let TchTensorAsImage {
-            ref tensor,
-            kind: convention,
-        } = *from;
+        let TchTensorAsImage { ref tensor, kind: convention, } = *from;
 
-        use TchTensorImageShape as S;
         let (tensor, [channels, rows, cols]) = match (tensor.size3()?, convention) {
-            ((w, h, c), S::Whc) => (tensor.f_permute(&[1, 0, 2])?, [c, h, w]),
-            ((h, w, c), S::Hwc) => (tensor.shallow_clone(), [c, h, w]),
-            ((c, w, h), S::Cwh) => (tensor.f_permute(&[2, 1, 0])?, [c, h, w]),
-            ((c, h, w), S::Chw) => (tensor.f_permute(&[1, 2, 0])?, [c, h, w]),
+            ((w, h, c), TchTensorImageShape::Whc) => (tensor.f_permute(&[1, 0, 2])?, [c, h, w]),
+            ((h, w, c), TchTensorImageShape::Hwc) => (tensor.shallow_clone(), [c, h, w]),
+            ((c, w, h), TchTensorImageShape::Cwh) => (tensor.f_permute(&[2, 1, 0])?, [c, h, w]),
+            ((c, h, w), TchTensorImageShape::Chw) => (tensor.f_permute(&[1, 2, 0])?, [c, h, w]),
         };
 
         // 将张量移动到CPU并转换为连续存储
         let tensor = tensor.f_contiguous()?.f_to_device(tch::Device::Cpu)?;
-
         // 获取 OpenCV 需要的深度
-        let depth = tch_kind_to_opencv_depth(tensor.f_kind()?)?;
+        let depth = utils::tch_kind_to_opencv_depth(tensor.f_kind()?)?;
         let typ = cv::CV_MAKE_TYPE(depth, channels as i32);
 
         // 通用函数处理不同类型的数据
@@ -262,12 +259,13 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         ) -> Result<cv::Mat, Error> {
             // let data_ptr = tensor.data_ptr() as *const T;
             // let data_slice = std::slice::from_raw_parts(data_ptr, total_size);
-            Ok(Mat::new_rows_cols_with_data_unsafe_def(
+            Ok(Mat::new_rows_cols_with_data_unsafe(
                 rows,
                 cols,
                 typ,
                 tensor.data_ptr(),
-            )?)
+                cv::Mat_AUTO_STEP,
+            )?.try_clone()?)
         }
 
         // 计算总数据量
@@ -338,7 +336,7 @@ impl TryFromCv<&tch::Tensor> for cv::Mat {
         let size: Vec<_> = tensor.size().into_iter().map(|dim| dim as i32).collect();
 
         // 获取 OpenCV 需要的深度
-        let depth = tch_kind_to_opencv_depth(tensor.f_kind()?)?;
+        let depth = utils::tch_kind_to_opencv_depth(tensor.f_kind()?)?;
 
         // 检查张量类型的通道数
         let typ = cv::CV_MAKETYPE(depth, 1);
@@ -346,7 +344,7 @@ impl TryFromCv<&tch::Tensor> for cv::Mat {
         // 使用 unsafe 块从指针生成 Mat
         let mat = unsafe { cv::Mat::new_nd_with_data_unsafe(&size, typ, tensor.data_ptr(), None)? };
 
-        Ok(mat.try_clone()?)
+        Ok(mat)
     }
 }
 
@@ -360,11 +358,12 @@ impl TryFromCv<tch::Tensor> for cv::Mat {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::anyhow;
     use super::*;
     use tch::{self, IndexOp, Tensor};
 
-    // const EPSILON: f64 = 1e-8;
-    const ROUNDS: usize = 1000;
+    const EPSILON: f64 = 1e-8;
+    pub const ROUNDS: usize = 1000;
 
     #[test]
     fn tensor_mat_conv() -> Result<()> {
@@ -441,10 +440,9 @@ mod tests {
                 for col in 0..width {
                     let pixel: &cv::Vec3f = mat.at_2d(row as i32, col as i32)?;
                     let [red, green, blue] = **pixel;
-                    println!("pixel[{}*{}]: [{},{},{}]", row, col, red, green, blue);
-                    anyhow::ensure!(f32::try_from(before.i((0, row, col))).unwrap() == red,"value mismatch");
-                    anyhow::ensure!(f32::try_from(before.i((1, row, col))).unwrap() == green,"value mismatch");
-                    anyhow::ensure!(f32::try_from(before.i((2, row, col))).unwrap() == blue,"value mismatch");
+                    anyhow::ensure!(f32::try_from(before.i((0, row, col))).unwrap() == red, "value mismatch");
+                    anyhow::ensure!(f32::try_from(before.i((1, row, col))).unwrap() == green, "value mismatch");
+                    anyhow::ensure!(f32::try_from(before.i((2, row, col))).unwrap() == blue, "value mismatch");
                 }
             }
 
@@ -474,7 +472,7 @@ mod tests {
             let before = Tensor::randn(&[channel, height, width], tch::kind::FLOAT_CPU);
             let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = OpenCvMatAsTchTensor::try_from_cv(&mat)?; // in hwc
-            println!("after={:?}", &*after);
+            println!("after={:?}", after.size());
             // compare original and recovered Tensor values
             {
                 anyhow::ensure!(after.size() == [height, width, channel], "size mismatch",);

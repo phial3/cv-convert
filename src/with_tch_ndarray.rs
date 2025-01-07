@@ -207,7 +207,6 @@ where
 mod tests {
     use super::*;
     use crate::TryIntoCv;
-    use itertools::{iproduct, izip};
     use rand::prelude::*;
     use tch::IndexOp;
 
@@ -385,12 +384,12 @@ mod tests {
         let tensor = tch::Tensor::from_cv(&array);
 
         let is_shape_correct = array.shape().len() == tensor.size().len()
-            && izip!(array.shape().iter().cloned(), tensor.size().iter().cloned())
+            && itertools::izip!(array.shape().iter().cloned(), tensor.size().iter().cloned())
                 .all(|(lhs, rhs)| lhs == rhs as usize);
 
         anyhow::ensure!(is_shape_correct, "shape mismatch");
 
-        let is_value_correct = iproduct!(0..s0, 0..s1, 0..s2).all(|(i0, i1, i2)| {
+        let is_value_correct = itertools::iproduct!(0..s0, 0..s1, 0..s2).all(|(i0, i1, i2)| {
             let lhs = array[(i2, i1, i0)];
             let rhs: f32 = tensor
                 .i((i2 as i64, i1 as i64, i0 as i64))
