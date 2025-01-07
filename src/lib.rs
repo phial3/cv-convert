@@ -200,10 +200,10 @@
 
 pub mod prelude {
     pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+    pub use crate::common::prelude::*;
 }
 
 mod common;
-pub use common::prelude::*;
 
 mod traits;
 pub use traits::*;

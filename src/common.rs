@@ -22,7 +22,7 @@
 //! # //        Almost makes a case for providing `.as_slice()`
 //! # //        as an explicit form of this coercion.
 //! #
-//! # use slice_of_array::prelude::*;
+//! # use cv_convert::prelude::*;
 //! # let _ = || {
 //! #     let x: [[i32; 6]; 5] = unimplemented!();
 //! #     let _: &[[[i32; 3]; 2]; 5] =
@@ -39,7 +39,7 @@
 //! array size, one can use a turbofish: e.g .`x.nest::<[_; 3]>()`.
 //!
 //! ```
-//! use ::slice_of_array::prelude::*;
+//! use ::cv_convert::prelude::*;
 //!
 //! let vec = vec![[2i32, 2, 2], [7, 7, 7], [4, 4, 4], [1, 1, 1]];
 //! assert_eq!(vec.flat(), &[2, 2, 2, 7, 7, 7, 4, 4, 4, 1, 1, 1]);
@@ -62,7 +62,7 @@
 //! with `<[T]>::to_vec` to perform a copy:
 //!
 //! ```
-//! # use ::slice_of_array::prelude::*;
+//! # use ::cv_convert::prelude::*;
 //! let vec = vec![[2i32, 2, 2], [7, 7, 7]];
 //!
 //! // copying into a Vec<i32>
@@ -83,7 +83,7 @@ pub mod prelude {
     //! the precise names of the traits that each method belongs to.
     //!
     //! ```rust
-    //! use slice_of_array::prelude::*;
+    //! use cv_convert::prelude::*;
     //! ```
     //!
     //! `slice_of_array` follows an opinionated policy on what preludes should and should
