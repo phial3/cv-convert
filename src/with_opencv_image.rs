@@ -29,8 +29,6 @@ where
     fn try_from_cv(from: &image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
         let (width, height) = from.dimensions();
         let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
-
-        // 使用不安全的方式创建 OpenCV Mat
         let mat = unsafe {
             Mat::new_rows_cols_with_data_unsafe(
                 height as i32, // 行数
