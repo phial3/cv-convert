@@ -22,6 +22,14 @@ default = [
     'image',
     'imageproc',
 ]
+docs-only = [
+    'tch',
+    'ndarray',
+    'opencv',
+    'nalgebra',
+    'image',
+    'imageproc',
+]
 
 [dev-dependencies]
 approx = '0.5'

@@ -205,35 +205,76 @@ pub mod prelude {
 
 mod common;
 
-mod traits;
-pub use traits::*;
-
 mod macros;
 use macros::*;
 
-mod with_opencv;
-pub use with_opencv::*;
+mod traits;
+pub use traits::*;
 
-mod with_tch;
-pub use with_tch::*;
+// openCV
+has_opencv! {
+    mod with_opencv;
+    pub use with_opencv::*;
+}
 
-mod with_tch_image;
-pub use with_tch_image::*;
+// tch
+has_tch! {
+    mod with_tch;
+    pub use with_tch::*;
+}
 
-mod with_tch_ndarray;
-pub use with_tch_ndarray::*;
+// tch and image
+has_tch! {
+    has_image! {
+        mod with_tch_image;
+        pub use with_tch_image::*;
+    }
+}
 
-mod with_opencv_image;
-pub use with_opencv_image::*;
+// tch and ndarray
+has_tch! {
+    has_ndarray! {
+        mod with_tch_ndarray;
+        pub use with_tch_ndarray::*;
+    }
+}
 
-mod with_opencv_imageproc;
-pub use with_opencv_imageproc::*;
+// image and opencv
+has_image! {
+    has_opencv! {
+        mod with_opencv_image;
+        pub use with_opencv_image::*;
+    }
+}
 
-mod with_opencv_nalgebra;
-pub use with_opencv_nalgebra::*;
+// imageproc and opencv
+has_imageproc! {
+    has_opencv! {
+        mod with_opencv_imageproc;
+        pub use with_opencv_imageproc::*;
+    }
+}
 
-mod with_opencv_tch;
-pub use with_opencv_tch::*;
+// nalgebra and opencv
+has_nalgebra! {
+    has_opencv! {
+        mod with_opencv_nalgebra;
+        pub use with_opencv_nalgebra::*;
+    }
+}
 
-mod with_opencv_ndarray;
-pub use with_opencv_ndarray::*;
+// tch and opencv
+has_tch! {
+    has_opencv! {
+        mod with_opencv_tch;
+        pub use with_opencv_tch::*;
+    }
+}
+
+// opencv and ndarray
+has_opencv! {
+    has_ndarray! {
+        mod with_opencv_ndarray;
+        pub use with_opencv_ndarray::*;
+    }
+}
