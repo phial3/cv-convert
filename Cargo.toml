@@ -16,6 +16,7 @@ features = ['docs-only']
 [features]
 default = [
     'tch',
+    'rsmpeg',
     'ndarray',
     'opencv',
     'nalgebra',
@@ -24,6 +25,7 @@ default = [
 ]
 docs-only = [
     'tch',
+    'rsmpeg',
     'ndarray',
     'opencv',
     'nalgebra',
@@ -45,6 +47,9 @@ image = { version = '0.25', default-features = true, optional = true }
 nalgebra = { version = '0.33', default-features = true, optional = true }
 ndarray = { version = '0.16', default-features = true, optional = true }
 imageproc = { version = '0.25', default-features = true, optional = true }
+rsmpeg = { git = "https://github.com/larksuite/rsmpeg", branch = "master", default-features = false, optional = true, features = [
+    "ffmpeg7", "link_system_ffmpeg"
+] }
 opencv = { version = '0.93', default-features = false, features = [
     "dnn",
     "videoio",

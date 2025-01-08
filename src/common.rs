@@ -375,12 +375,16 @@ mod tests {
 
         {
             let _: &[[(); 3]; 3] = v.nest().as_array();
+            // 编译器推荐使用下面写法：
+            // let _: &[[(); 3]; 3] = SliceArrayExt::as_array(v.nest());
         }
         {
             let _: &[[[(); 3]; 3]] = v.nest().nest();
         }
         {
             let _: &mut [[(); 3]; 3] = v.nest_mut().as_mut_array();
+            // 编译器推荐使用下面写法：
+            // let _: &mut [[(); 3]; 3] = SliceArrayExt::as_mut_array(v.nest_mut());
         }
         {
             let _: &mut [[[(); 3]; 3]] = v.nest_mut().nest_mut();

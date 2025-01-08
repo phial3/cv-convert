@@ -1,10 +1,4 @@
-use std::{
-    borrow::Borrow,
-    ops::{Deref, DerefMut},
-    slice,
-};
-
-use crate::{common::*, TryFromCv};
+use crate::{TryFromCv};
 
 use half::f16;
 use opencv::{core as core_cv, prelude::*};
@@ -98,7 +92,7 @@ mod mat_ext {
             let numel = self.numel();
             let ptr = self.ptr(0)? as *const T;
 
-            let slice = unsafe { slice::from_raw_parts(ptr, numel) };
+            let slice = unsafe { std::slice::from_raw_parts(ptr, numel) };
             Ok(slice)
         }
 

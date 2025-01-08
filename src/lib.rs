@@ -278,3 +278,17 @@ has_opencv! {
         pub use with_opencv_ndarray::*;
     }
 }
+
+has_rsmpeg! {
+    //  opencv and rsmpeg
+    has_opencv! {
+        mod with_opencv_rsmpeg;
+        pub use with_opencv_rsmpeg::*;
+    }
+
+    // rsmpeg and image
+    has_image! {
+        mod with_rsmpeg_image;
+        pub use with_rsmpeg_image::*;
+    }
+}

@@ -74,6 +74,31 @@ macro_rules! has_opencv {
 }
 pub(crate) use has_opencv;
 
+/// if_rsmpeg 宏定义
+macro_rules! if_rsmpeg {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(
+                feature = "rsmpeg"
+            ))]
+            $item
+        )*
+    };
+}
+pub(crate) use if_rsmpeg;
+
+/// has_rsmpeg 宏定义
+macro_rules! has_rsmpeg {
+    ($($item:item)*) => {
+        crate::macros::if_rsmpeg! {
+            #[allow(unused_imports)]
+            use rsmpeg as _;
+            $($item)*
+        }
+    };
+}
+pub(crate) use has_rsmpeg;
+
 /// if_ndarray 宏定义
 macro_rules! if_ndarray {
     ($($item:item)*) => {
