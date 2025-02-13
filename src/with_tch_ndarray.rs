@@ -1,5 +1,5 @@
 use crate::{FromCv, TryFromCv};
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use ndarray as nd;
 
 use to_ndarray_shape::*;

@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::{Cow},
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     slice,
@@ -64,7 +64,8 @@ mod utils {
 
     pub fn opencv_mat_to_tch_meta_2d(mat: &cv::Mat) -> Result<TchImageMeta> {
         let cv::Size { height, width } = mat.size()?;
-        let kind = opencv_depth_to_tch_kind(mat.depth())?;
+        let kind = opencv_depth_to_tch_kind(mat.depth())
+            .context("opencv mat to tch meta_2d error.")?;
         let channels = mat.channels();
         Ok(TchImageMeta {
             kind,
@@ -81,7 +82,8 @@ mod utils {
             .map(|&dim| dim as i64)
             .chain([mat.channels() as i64])
             .collect();
-        let kind = opencv_depth_to_tch_kind(mat.depth())?;
+        let kind = opencv_depth_to_tch_kind(mat.depth())
+            .context("opencv mat to tch meta error.")?;
         Ok(TchTensorMeta { kind, shape })
     }
 }
@@ -97,7 +99,7 @@ mod tensor_from_mat {
         pub(super) _mat: &'a cv::Mat,
     }
 
-    impl<'a> Drop for OpenCvMatAsTchTensor<'a> {
+    impl Drop for OpenCvMatAsTchTensor<'_> {
         fn drop(&mut self) {
             unsafe {
                 ManuallyDrop::drop(&mut self.tensor);
@@ -105,13 +107,13 @@ mod tensor_from_mat {
         }
     }
 
-    impl<'a> AsRef<tch::Tensor> for OpenCvMatAsTchTensor<'a> {
+    impl AsRef<tch::Tensor> for OpenCvMatAsTchTensor<'_> {
         fn as_ref(&self) -> &tch::Tensor {
             self.tensor.deref()
         }
     }
 
-    impl<'a> Deref for OpenCvMatAsTchTensor<'a> {
+    impl Deref for OpenCvMatAsTchTensor<'_> {
         type Target = tch::Tensor;
 
         fn deref(&self) -> &Self::Target {
@@ -119,7 +121,7 @@ mod tensor_from_mat {
         }
     }
 
-    impl<'a> DerefMut for OpenCvMatAsTchTensor<'a> {
+    impl DerefMut for OpenCvMatAsTchTensor<'_> {
         fn deref_mut(&mut self) -> &mut Self::Target {
             self.tensor.deref_mut()
         }

@@ -1,5 +1,5 @@
 use crate::{FromCv, TryFromCv, TryIntoCv};
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use nalgebra::{self as na, geometry as geo};
 use opencv::{calib3d, core as core_cv, prelude::*};
 

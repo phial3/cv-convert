@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 //! Data conversion among computer vision libraries.
 //!
 //! # Version Selection

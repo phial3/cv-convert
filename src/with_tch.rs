@@ -3,7 +3,7 @@ use crate::{
     FromCv, TryFromCv
 };
 
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 
 macro_rules! impl_from_array {
     ($elem:ty) => {

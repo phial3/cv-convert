@@ -2,7 +2,7 @@ use crate::{TryFromCv};
 
 use half::f16;
 use opencv::{core as core_cv, prelude::*};
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 
 pub use element_type::*;
 mod element_type {

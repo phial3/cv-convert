@@ -1,6 +1,6 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{TryFromCv, TryIntoCv};
-use anyhow::{Context, Error, Result};
+use anyhow::{Error, Result};
 use opencv::{core::Mat, prelude::*};
 use std::ops::Deref;
 
