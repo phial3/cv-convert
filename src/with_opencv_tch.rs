@@ -11,7 +11,7 @@ use crate::{
 };
 
 use anyhow::{Context, Error, Result};
-use opencv::{core as cv, prelude::*};
+use opencv::{core as cv_core, prelude::*};
 
 use utils::{TchImageMeta, TchTensorMeta};
 mod utils {
@@ -33,13 +33,13 @@ mod utils {
         use tch::Kind as K;
 
         let typ = match kind {
-            K::Uint8 => cv::CV_8U,
-            K::Int8 => cv::CV_8S,
-            K::Int16 => cv::CV_16S,
-            K::Half => cv::CV_16F,
-            K::Int => cv::CV_32S,
-            K::Float => cv::CV_32F,
-            K::Double => cv::CV_64F,
+            K::Uint8 => cv_core::CV_8U,
+            K::Int8 => cv_core::CV_8S,
+            K::Int16 => cv_core::CV_16S,
+            K::Half => cv_core::CV_16F,
+            K::Int => cv_core::CV_32S,
+            K::Float => cv_core::CV_32F,
+            K::Double => cv_core::CV_64F,
             kind => anyhow::bail!("unsupported tensor kind {:?}", kind),
         };
 
@@ -50,20 +50,20 @@ mod utils {
         use tch::Kind as K;
 
         let kind = match depth {
-            cv::CV_8U => K::Uint8,
-            cv::CV_8S => K::Int8,
-            cv::CV_16S => K::Int16,
-            cv::CV_32S => K::Int,
-            cv::CV_16F => K::Half,
-            cv::CV_32F => K::Float,
-            cv::CV_64F => K::Double,
+            cv_core::CV_8U => K::Uint8,
+            cv_core::CV_8S => K::Int8,
+            cv_core::CV_16S => K::Int16,
+            cv_core::CV_32S => K::Int,
+            cv_core::CV_16F => K::Half,
+            cv_core::CV_32F => K::Float,
+            cv_core::CV_64F => K::Double,
             _ => anyhow::bail!("unsupported OpenCV Mat depth {}", depth),
         };
         Ok(kind)
     }
 
-    pub fn opencv_mat_to_tch_meta_2d(mat: &cv::Mat) -> Result<TchImageMeta> {
-        let cv::Size { height, width } = mat.size()?;
+    pub fn opencv_mat_to_tch_meta_2d(mat: &cv_core::Mat) -> Result<TchImageMeta> {
+        let cv_core::Size { height, width } = mat.size()?;
         let kind = opencv_depth_to_tch_kind(mat.depth())
             .context("opencv mat to tch meta_2d error.")?;
         let channels = mat.channels();
@@ -75,7 +75,7 @@ mod utils {
         })
     }
 
-    pub fn opencv_mat_to_tch_meta_nd(mat: &cv::Mat) -> Result<TchTensorMeta> {
+    pub fn opencv_mat_to_tch_meta_nd(mat: &cv_core::Mat) -> Result<TchTensorMeta> {
         let shape: Vec<_> = mat
             .mat_size()
             .iter()
@@ -92,11 +92,11 @@ pub use tensor_from_mat::*;
 mod tensor_from_mat {
     use super::*;
 
-    /// A [Tensor](tch::Tensor) which data reference borrows from a [Mat](cv::Mat). It can be dereferenced to a [Tensor](tch::Tensor).
+    /// A [Tensor](tch::Tensor) which data reference borrows from a [Mat](cv_core::Mat). It can be dereferenced to a [Tensor](tch::Tensor).
     #[derive(Debug)]
     pub struct OpenCvMatAsTchTensor<'a> {
         pub(super) tensor: ManuallyDrop<tch::Tensor>,
-        pub(super) _mat: &'a cv::Mat,
+        pub(super) _mat: &'a cv_core::Mat,
     }
 
     impl Drop for OpenCvMatAsTchTensor<'_> {
@@ -128,10 +128,10 @@ mod tensor_from_mat {
     }
 }
 
-impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
+impl<'a> TryFromCv<&'a cv_core::Mat> for OpenCvMatAsTchTensor<'a> {
     type Error = Error;
 
-    fn try_from_cv(from: &'a cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: &'a cv_core::Mat) -> Result<Self, Self::Error> {
         anyhow::ensure!(from.is_continuous(), "non-continuous Mat is not supported");
 
         let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(from)?;
@@ -161,10 +161,10 @@ impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
     }
 }
 
-impl TryFromCv<&cv::Mat> for TchTensorAsImage {
+impl TryFromCv<&cv_core::Mat> for TchTensorAsImage {
     type Error = Error;
 
-    fn try_from_cv(mat: &cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(mat: &cv_core::Mat) -> Result<Self, Self::Error> {
         let from = if mat.is_continuous() {
             Cow::Borrowed(mat)
         } else {
@@ -192,18 +192,18 @@ impl TryFromCv<&cv::Mat> for TchTensorAsImage {
     }
 }
 
-impl TryFromCv<cv::Mat> for TchTensorAsImage {
+impl TryFromCv<cv_core::Mat> for TchTensorAsImage {
     type Error = Error;
 
-    fn try_from_cv(from: cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: cv_core::Mat) -> Result<Self, Self::Error> {
         (&from).try_into_cv()
     }
 }
 
-impl TryFromCv<&cv::Mat> for tch::Tensor {
+impl TryFromCv<&cv_core::Mat> for tch::Tensor {
     type Error = Error;
 
-    fn try_from_cv(mat: &cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(mat: &cv_core::Mat) -> Result<Self, Self::Error> {
         let from = if mat.is_continuous() {
             Cow::Borrowed(mat)
         } else {
@@ -223,15 +223,15 @@ impl TryFromCv<&cv::Mat> for tch::Tensor {
     }
 }
 
-impl TryFromCv<cv::Mat> for tch::Tensor {
+impl TryFromCv<cv_core::Mat> for tch::Tensor {
     type Error = Error;
 
-    fn try_from_cv(from: cv::Mat) -> Result<Self, Self::Error> {
+    fn try_from_cv(from: cv_core::Mat) -> Result<Self, Self::Error> {
         (&from).try_into_cv()
     }
 }
 
-impl TryFromCv<&TchTensorAsImage> for cv::Mat {
+impl TryFromCv<&TchTensorAsImage> for cv_core::Mat {
     type Error = Error;
 
     fn try_from_cv(from: &TchTensorAsImage) -> Result<Self, Self::Error> {
@@ -248,7 +248,7 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         let tensor = tensor.f_contiguous()?.f_to_device(tch::Device::Cpu)?;
         // 获取 OpenCV 需要的深度
         let depth = utils::tch_kind_to_opencv_depth(tensor.f_kind()?)?;
-        let typ = cv::CV_MAKE_TYPE(depth, channels as i32);
+        let typ = cv_core::CV_MAKE_TYPE(depth, channels as i32);
 
         // 通用函数处理不同类型的数据
         #[allow(clippy::extra_unused_type_parameters)]
@@ -258,7 +258,7 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
             typ: i32,
             rows: i32,
             cols: i32,
-        ) -> Result<cv::Mat, Error> {
+        ) -> Result<cv_core::Mat, Error> {
             // let data_ptr = tensor.data_ptr() as *const T;
             // let data_slice = std::slice::from_raw_parts(data_ptr, total_size);
             Ok(Mat::new_rows_cols_with_data_unsafe(
@@ -266,7 +266,7 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
                 cols,
                 typ,
                 tensor.data_ptr(),
-                cv::Mat_AUTO_STEP,
+                cv_core::Mat_AUTO_STEP,
             )?.try_clone()?)
         }
 
@@ -319,7 +319,7 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
     }
 }
 
-impl TryFromCv<TchTensorAsImage> for cv::Mat {
+impl TryFromCv<TchTensorAsImage> for cv_core::Mat {
     type Error = Error;
 
     fn try_from_cv(from: TchTensorAsImage) -> Result<Self, Self::Error> {
@@ -327,7 +327,7 @@ impl TryFromCv<TchTensorAsImage> for cv::Mat {
     }
 }
 
-impl TryFromCv<&tch::Tensor> for cv::Mat {
+impl TryFromCv<&tch::Tensor> for cv_core::Mat {
     type Error = Error;
 
     fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
@@ -341,16 +341,16 @@ impl TryFromCv<&tch::Tensor> for cv::Mat {
         let depth = utils::tch_kind_to_opencv_depth(tensor.f_kind()?)?;
 
         // 检查张量类型的通道数
-        let typ = cv::CV_MAKETYPE(depth, 1);
+        let typ = cv_core::CV_MAKETYPE(depth, 1);
 
         // 使用 unsafe 块从指针生成 Mat
-        let mat = unsafe { cv::Mat::new_nd_with_data_unsafe(&size, typ, tensor.data_ptr(), None)? };
+        let mat = unsafe { cv_core::Mat::new_nd_with_data_unsafe(&size, typ, tensor.data_ptr(), None)? };
 
         Ok(mat)
     }
 }
 
-impl TryFromCv<tch::Tensor> for cv::Mat {
+impl TryFromCv<tch::Tensor> for cv_core::Mat {
     type Error = Error;
 
     fn try_from_cv(from: tch::Tensor) -> Result<Self, Self::Error> {
@@ -372,7 +372,7 @@ mod tests {
 
         for _ in 0..ROUNDS {
             let before = Tensor::randn(size.as_ref(), tch::kind::FLOAT_CPU);
-            let mat = cv::Mat::try_from_cv(&before)?;
+            let mat = cv_core::Mat::try_from_cv(&before)?;
             let after = Tensor::try_from_cv(&mat)?.f_view(size)?;
 
             // compare Tensor and Mat values
@@ -433,13 +433,13 @@ mod tests {
             let width = 8;
 
             let before = Tensor::randn([channels, height, width], tch::kind::FLOAT_CPU);
-            let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
+            let mat: cv_core::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = Tensor::try_from_cv(&mat)?.f_permute([2, 0, 1])?; // hwc -> chw
 
             // compare Tensor and Mat values
             for row in 0..height {
                 for col in 0..width {
-                    let pixel: &cv::Vec3f = mat.at_2d(row as i32, col as i32)?;
+                    let pixel: &cv_core::Vec3f = mat.at_2d(row as i32, col as i32)?;
                     let [red, green, blue] = **pixel;
                     anyhow::ensure!(f32::try_from(before.i((0, row, col))).unwrap() == red, "value mismatch");
                     anyhow::ensure!(f32::try_from(before.i((1, row, col))).unwrap() == green, "value mismatch");
@@ -471,7 +471,7 @@ mod tests {
             let width = 8;
 
             let before = Tensor::randn([channel, height, width], tch::kind::FLOAT_CPU);
-            let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
+            let mat: cv_core::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = OpenCvMatAsTchTensor::try_from_cv(&mat)?; // in hwc
             println!("after={:?}", after.size());
             // compare original and recovered Tensor values
