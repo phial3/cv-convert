@@ -1,8 +1,6 @@
 use crate::{FromCv, IntoCv, TchTensorAsImage, TchTensorImageShape, TryFromCv};
 use anyhow::{Error, Result};
-use image;
 use std::ops::Deref;
-use tch;
 
 impl<P, Container> FromCv<&image::ImageBuffer<P, Container>> for TchTensorAsImage
 where
@@ -14,7 +12,7 @@ where
         let (width, height) = from.dimensions();
         let channels = P::CHANNEL_COUNT;
         let tensor =
-            tch::Tensor::from_slice(&*from).view([width as i64, height as i64, channels as i64]);
+            tch::Tensor::from_slice(from).view([width as i64, height as i64, channels as i64]);
         TchTensorAsImage {
             tensor,
             kind: TchTensorImageShape::Whc,

@@ -166,13 +166,13 @@
 //!
 //! - [(&)Tensor](tch::Tensor) ->? [Mat](opencv::core::Mat)
 //!
-//!    The n-dimensinoal input [Tensor](tch::Tensor) is converted to a [Mat](opencv::core::Mat)
-//!    with n dimensions and a channel of size 1.
+//!  The n-dimensinoal input [Tensor](tch::Tensor) is converted to a [Mat](opencv::core::Mat)
+//!  with n dimensions and a channel of size 1.
 //!
 //! - [(&)TchTensorAsImage](TchTensorAsImage) ->? [Mat](opencv::core::Mat)
 //!
-//!    The output [Mat](opencv::core::Mat) is a 2D image, which height, width and channel size
-//!    are judged from the input [TchTensorAsImage](TchTensorAsImage) shape.
+//!  The output [Mat](opencv::core::Mat) is a 2D image, which height, width and channel size
+//!  are judged from the input [TchTensorAsImage](TchTensorAsImage) shape.
 //!
 //!
 //! ## opencv -> ndarray
@@ -199,8 +199,8 @@
 //! project Cargo.toml to enable default modules in your project.
 
 pub mod prelude {
-    pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
     pub use crate::common::prelude::*;
+    pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 }
 
 mod common;

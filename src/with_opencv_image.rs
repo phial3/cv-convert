@@ -1,7 +1,6 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{TryFromCv, TryIntoCv};
 use anyhow::{Context, Error, Result};
-use image;
 use opencv::{core::Mat, prelude::*};
 use std::ops::Deref;
 
@@ -249,7 +248,6 @@ mod tests {
     use crate::with_opencv::MatExt;
     use crate::TryIntoCv;
     use anyhow::Result;
-    use image;
     use itertools::iproduct;
     use opencv::{core::Mat, prelude::*};
 

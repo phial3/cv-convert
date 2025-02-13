@@ -10,7 +10,6 @@ use crate::{
     TryFromCv, TryIntoCv
 };
 
-use tch;
 use anyhow::{Context, Error, Result};
 use opencv::{core as cv, prelude::*};
 
@@ -133,7 +132,7 @@ impl<'a> TryFromCv<&'a cv::Mat> for OpenCvMatAsTchTensor<'a> {
     fn try_from_cv(from: &'a cv::Mat) -> Result<Self, Self::Error> {
         anyhow::ensure!(from.is_continuous(), "non-continuous Mat is not supported");
 
-        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(&from)?;
+        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(from)?;
         let strides = {
             let mut strides: Vec<_> = shape
                 .iter()
@@ -210,7 +209,7 @@ impl TryFromCv<&cv::Mat> for tch::Tensor {
             Cow::Owned(mat.try_clone()?)
         };
 
-        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(&*from)?;
+        let TchTensorMeta { kind, shape } = utils::opencv_mat_to_tch_meta_nd(&from)?;
 
         let tensor = unsafe {
             let slice_size = shape.iter().cloned().product::<i64>() as usize * kind.elt_size_in_bytes();
@@ -237,10 +236,10 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         let TchTensorAsImage { ref tensor, kind: convention, } = *from;
 
         let (tensor, [channels, rows, cols]) = match (tensor.size3()?, convention) {
-            ((w, h, c), TchTensorImageShape::Whc) => (tensor.f_permute(&[1, 0, 2])?, [c, h, w]),
+            ((w, h, c), TchTensorImageShape::Whc) => (tensor.f_permute([1, 0, 2])?, [c, h, w]),
             ((h, w, c), TchTensorImageShape::Hwc) => (tensor.shallow_clone(), [c, h, w]),
-            ((c, w, h), TchTensorImageShape::Cwh) => (tensor.f_permute(&[2, 1, 0])?, [c, h, w]),
-            ((c, h, w), TchTensorImageShape::Chw) => (tensor.f_permute(&[1, 2, 0])?, [c, h, w]),
+            ((c, w, h), TchTensorImageShape::Cwh) => (tensor.f_permute([2, 1, 0])?, [c, h, w]),
+            ((c, h, w), TchTensorImageShape::Chw) => (tensor.f_permute([1, 2, 0])?, [c, h, w]),
         };
 
         // 将张量移动到CPU并转换为连续存储
@@ -250,6 +249,7 @@ impl TryFromCv<&TchTensorAsImage> for cv::Mat {
         let typ = cv::CV_MAKE_TYPE(depth, channels as i32);
 
         // 通用函数处理不同类型的数据
+        #[allow(clippy::extra_unused_type_parameters)]
         unsafe fn create_mat_from_tensor<T>(
             tensor: &tch::Tensor,
             _total_size: usize,
@@ -358,11 +358,10 @@ impl TryFromCv<tch::Tensor> for cv::Mat {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::anyhow;
     use super::*;
     use tch::{self, IndexOp, Tensor};
 
-    const EPSILON: f64 = 1e-8;
+    // const EPSILON: f64 = 1e-8;
     pub const ROUNDS: usize = 1000;
 
     #[test]
@@ -431,9 +430,9 @@ mod tests {
             let height = 16;
             let width = 8;
 
-            let before = Tensor::randn(&[channels, height, width], tch::kind::FLOAT_CPU);
+            let before = Tensor::randn([channels, height, width], tch::kind::FLOAT_CPU);
             let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
-            let after = Tensor::try_from_cv(&mat)?.f_permute(&[2, 0, 1])?; // hwc -> chw
+            let after = Tensor::try_from_cv(&mat)?.f_permute([2, 0, 1])?; // hwc -> chw
 
             // compare Tensor and Mat values
             for row in 0..height {
@@ -469,14 +468,14 @@ mod tests {
             let height = 16;
             let width = 8;
 
-            let before = Tensor::randn(&[channel, height, width], tch::kind::FLOAT_CPU);
+            let before = Tensor::randn([channel, height, width], tch::kind::FLOAT_CPU);
             let mat: cv::Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?.try_into_cv()?;
             let after = OpenCvMatAsTchTensor::try_from_cv(&mat)?; // in hwc
             println!("after={:?}", after.size());
             // compare original and recovered Tensor values
             {
                 anyhow::ensure!(after.size() == [height, width, channel], "size mismatch",);
-                anyhow::ensure!(&before.f_permute(&[1, 2, 0])? == &*after, "value mismatch");
+                anyhow::ensure!(before.f_permute([1, 2, 0])? == *after, "value mismatch");
             }
         }
         Ok(())

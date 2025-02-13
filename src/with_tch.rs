@@ -3,7 +3,6 @@ use crate::{
     FromCv, TryFromCv
 };
 
-use tch;
 use anyhow::{Context, Error, Result};
 
 macro_rules! impl_from_array {
@@ -20,7 +19,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N)
                 };
-                Ok(slice.as_array())
+                Ok(slice.as_array_ref())
             }
         }
 
@@ -36,7 +35,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2)
                 };
-                Ok(slice.nest().as_array())
+                Ok(slice.nest().as_array_ref())
             }
         }
 
@@ -52,7 +51,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3)
                 };
-                Ok(slice.nest().nest().as_array())
+                Ok(slice.nest().nest().as_array_ref())
             }
         }
 
@@ -68,7 +67,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4)
                 };
-                Ok(slice.nest().nest().nest().as_array())
+                Ok(slice.nest().nest().nest().as_array_ref())
             }
         }
 
@@ -92,7 +91,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4 * N5)
                 };
-                Ok(slice.nest().nest().nest().nest().as_array())
+                Ok(slice.nest().nest().nest().nest().as_array_ref())
             }
         }
 
@@ -118,7 +117,7 @@ macro_rules! impl_from_array {
                 let slice: &[$elem] = unsafe {
                     std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4 * N5 * N6)
                 };
-                Ok(slice.nest().nest().nest().nest().nest().as_array())
+                Ok(slice.nest().nest().nest().nest().nest().as_array_ref())
             }
         }
 
@@ -468,17 +467,16 @@ mod tests {
     use super::*;
     use crate::TryIntoCv;
     use rand::prelude::*;
-    use tch;
 
     #[test]
     fn tensor_to_array_ref() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // 1 dim
         {
             type T = [f32; 3];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -492,7 +490,7 @@ mod tests {
         {
             type T = [[f32; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -506,7 +504,7 @@ mod tests {
         {
             type T = [[[f32; 4]; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -520,7 +518,7 @@ mod tests {
         {
             type T = [[[[f32; 2]; 4]; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -534,7 +532,7 @@ mod tests {
         {
             type T = [[[[[f32; 3]; 2]; 4]; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -548,7 +546,7 @@ mod tests {
         {
             type T = [[[[[[f32; 2]; 3]; 2]; 4]; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();
@@ -562,7 +560,7 @@ mod tests {
         {
             type T = [[[[[[f32; 2]; 3]; 2]; 4]; 3]; 2];
 
-            let input: T = rng.gen();
+            let input: T = rng.random();
             let tensor = tch::Tensor::from_cv(&input);
 
             let array: T = (&tensor).try_into_cv().unwrap();

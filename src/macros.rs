@@ -5,7 +5,7 @@
 macro_rules! if_image {
     ($($item:item)*) => {
         $(
-            #[cfg(any(feature = "image"))]
+            #[cfg(feature = "image")]
             $item
         )*
     };
@@ -53,9 +53,7 @@ pub(crate) use has_nalgebra;
 macro_rules! if_opencv {
     ($($item:item)*) => {
         $(
-            #[cfg(any(
-                feature = "opencv"
-            ))]
+            #[cfg(feature = "opencv")]
             $item
         )*
     };
@@ -103,7 +101,7 @@ pub(crate) use has_rsmpeg;
 macro_rules! if_ndarray {
     ($($item:item)*) => {
         $(
-            #[cfg(any(feature = "ndarray"))]
+            #[cfg(feature = "ndarray")]
             $item
         )*
     };
@@ -126,7 +124,7 @@ pub(crate) use has_ndarray;
 macro_rules! if_tch {
     ($($item:item)*) => {
         $(
-            #[cfg(any(feature = "tch"))]
+            #[cfg(feature = "tch")]
             $item
         )*
     };

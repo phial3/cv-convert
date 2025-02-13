@@ -1,4 +1,3 @@
-use imageproc;
 use opencv::core as core_cv;
 use crate::FromCv;
 
@@ -42,7 +41,6 @@ where
 mod tests {
     use anyhow::Result;
     use approx::abs_diff_eq;
-    use imageproc;
     use opencv::core as core_cv;
     use crate::{FromCv, IntoCv};
     use rand::prelude::*;
@@ -50,13 +48,13 @@ mod tests {
 
     #[test]
     fn convert_opencv_imageproc() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..5000 {
             // FromCv
             // opencv to imageproc
             {
-                let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
+                let cv_point = core_cv::Point2d::new(rng.random(), rng.random());
                 let imageproc_point = imageproc::point::Point::<f64>::from_cv(&cv_point);
                 anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
@@ -66,7 +64,7 @@ mod tests {
 
             // imageproc to opencv
             {
-                let imageproc_point = imageproc::point::Point::<f64>::new(rng.gen(), rng.gen());
+                let imageproc_point = imageproc::point::Point::<f64>::new(rng.random(), rng.random());
                 let cv_point = core_cv::Point2d::from_cv(&imageproc_point);
                 anyhow::ensure!(
                     abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),
@@ -77,7 +75,7 @@ mod tests {
             // IntoCv
             // opencv to imageproc
             {
-                let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
+                let cv_point = core_cv::Point2d::new(rng.random(), rng.random());
                 let imageproc_point: imageproc::point::Point<f64> = cv_point.into_cv();
                 anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
@@ -87,7 +85,7 @@ mod tests {
 
             // imageproc to opencv
             {
-                let imageproc_point = imageproc::point::Point::<f64>::new(rng.gen(), rng.gen());
+                let imageproc_point = imageproc::point::Point::<f64>::new(rng.random(), rng.random());
                 let cv_point: core_cv::Point2d = imageproc_point.into_cv();
                 anyhow::ensure!(
                     abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),

@@ -26,7 +26,7 @@
 //! # let _ = || {
 //! #     let x: [[i32; 6]; 5] = unimplemented!();
 //! #     let _: &[[[i32; 3]; 2]; 5] =
-//! x.flat().nest().nest().as_array()
+//! x.flat().nest().nest().as_array_ref()
 //! #     ;
 //! # };
 //! ```
@@ -227,20 +227,20 @@ pub trait SliceNestExt<T> {
 /// (Prefer `V where V: `[`IsSliceomorphic`]`<Element=T>` instead)
 pub trait SliceArrayExt<T> {
     /// View `&[T]` as `&[T; n]`.
-    fn as_array<V: IsSliceomorphic<Element = T>>(&self) -> &V;
+    fn as_array_ref<V: IsSliceomorphic<Element = T>>(&self) -> &V;
 
     /// View `&mut [T]` as `&mut [T; n]`.
-    fn as_mut_array<V: IsSliceomorphic<Element = T>>(&mut self) -> &mut V;
+    fn as_mut_array_ref<V: IsSliceomorphic<Element = T>>(&mut self) -> &mut V;
 
     /// Clone `&[T]` to `[T; n]`.
     ///
     /// This is provided because `.as_array().clone()` tends to cause trouble for
     /// type inference.
-    fn to_array<V: IsSliceomorphic<Element = T>>(&self) -> V
+    fn to_array<V>(&self) -> V
     where
-        V: Clone,
+        V: Clone + IsSliceomorphic<Element = T>,
     {
-        self.as_array::<V>().clone()
+        self.as_array_ref::<V>().clone()
     }
 }
 
@@ -324,7 +324,7 @@ fn checked_compute_nested_len<V: IsSliceomorphic>(len: usize, prefix: &str) -> u
 }
 
 impl<T> SliceArrayExt<T> for [T] {
-    fn as_array<V: IsSliceomorphic<Element = T>>(&self) -> &V {
+    fn as_array_ref<V: IsSliceomorphic<Element = T>>(&self) -> &V {
         validate_as_array_assumptions::<V>(self.len(), "&");
 
         // &self.nest()[0]  // <-- would not work for V::LEN = 0
@@ -336,7 +336,7 @@ impl<T> SliceArrayExt<T> for [T] {
         unsafe { (self.as_ptr() as *const V).as_ref().unwrap() }
     }
 
-    fn as_mut_array<V: IsSliceomorphic<Element = T>>(&mut self) -> &mut V {
+    fn as_mut_array_ref<V: IsSliceomorphic<Element = T>>(&mut self) -> &mut V {
         validate_as_array_assumptions::<V>(self.len(), "&mut ");
 
         // &mut self.nest_mut()[0]  // <-- would not work for V::LEN = 0
@@ -374,17 +374,13 @@ mod tests {
         let v: &mut [()] = &mut [(); 9];
 
         {
-            let _: &[[(); 3]; 3] = v.nest().as_array();
-            // 编译器推荐使用下面写法：
-            // let _: &[[(); 3]; 3] = SliceArrayExt::as_array(v.nest());
+            let _: &[[(); 3]; 3] = v.nest().as_array_ref();
         }
         {
             let _: &[[[(); 3]; 3]] = v.nest().nest();
         }
         {
-            let _: &mut [[(); 3]; 3] = v.nest_mut().as_mut_array();
-            // 编译器推荐使用下面写法：
-            // let _: &mut [[(); 3]; 3] = SliceArrayExt::as_mut_array(v.nest_mut());
+            let _: &mut [[(); 3]; 3] = v.nest_mut().as_mut_array_ref();
         }
         {
             let _: &mut [[[(); 3]; 3]] = v.nest_mut().nest_mut();
@@ -479,42 +475,42 @@ mod tests {
         #[should_panic(expected = "cannot view slice of length 1")]
         fn as_array_too_small() {
             let v: &[_] = &[(); 1];
-            let _: &[(); 3] = v.as_array();
+            let _: &[(); 3] = v.as_array_ref();
         }
 
         #[test]
         #[should_panic(expected = "cannot view slice of length 6")]
         fn as_array_too_large() {
             let v: &[_] = &[(); 6];
-            let _: &[(); 3] = v.as_array();
+            let _: &[(); 3] = v.as_array_ref();
         }
 
         #[test]
         #[should_panic(expected = "cannot view slice of length 6")]
         fn as_array_bad_zero() {
             let v: &[_] = &[(); 6];
-            let _: &[(); 0] = v.as_array();
+            let _: &[(); 0] = v.as_array_ref();
         }
 
         #[test]
         #[should_panic(expected = "cannot view slice of length 1")]
         fn as_mut_array_too_small() {
             let v: &mut [_] = &mut [(); 1];
-            let _: &mut [(); 3] = v.as_mut_array();
+            let _: &mut [(); 3] = v.as_mut_array_ref();
         }
 
         #[test]
         #[should_panic(expected = "cannot view slice of length 6")]
         fn as_mut_array_too_large() {
             let v: &mut [_] = &mut [(); 6];
-            let _: &mut [(); 3] = v.as_mut_array();
+            let _: &mut [(); 3] = v.as_mut_array_ref();
         }
 
         #[test]
         #[should_panic(expected = "cannot view slice of length 6")]
         fn as_mut_array_bad_zero() {
             let v: &mut [_] = &mut [(); 6];
-            let _: &[(); 0] = v.as_mut_array();
+            let _: &[(); 0] = v.as_mut_array_ref();
         }
     }
 }

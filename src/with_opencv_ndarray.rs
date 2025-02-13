@@ -92,12 +92,12 @@ mod tests {
 
     #[test]
     fn opencv_ndarray_conversion() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..5 {
             // Generate a random shape
-            let ndim: usize = rng.gen_range(2..=4);
-            let shape: Vec<usize> = (0..ndim).map(|_| rng.gen_range(1..=32)).collect();
+            let ndim: usize = rng.random_range(2..=4);
+            let shape: Vec<usize> = (0..ndim).map(|_| rng.random_range(1..=32)).collect();
 
             let in_mat = core_cv::Mat::new_randn_nd::<f32>(&shape)?;
             let view: nd::ArrayViewD<f32> = (&in_mat).try_into_cv()?;

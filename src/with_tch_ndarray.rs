@@ -1,7 +1,6 @@
 use crate::{FromCv, TryFromCv};
 use anyhow::{Context, Error, Result};
 use ndarray as nd;
-use tch;
 
 use to_ndarray_shape::*;
 mod to_ndarray_shape {
@@ -372,13 +371,13 @@ mod tests {
 
     #[test]
     fn ndarray_to_tensor_conversion() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let s0 = 2;
         let s1 = 3;
         let s2 = 4;
 
-        let array = nd::Array3::<f32>::from_shape_simple_fn([s0, s1, s2], || rng.gen());
+        let array = nd::Array3::<f32>::from_shape_simple_fn([s0, s1, s2], || rng.random());
         let array = array.reversed_axes();
 
         let tensor = tch::Tensor::from_cv(&array);

@@ -114,12 +114,11 @@ where
             let rotation_mat = core_cv::Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = core_cv::Mat::zeros(3, 1, core_cv::CV_64FC1)?.to_mat()?;
             calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut core_cv::no_array())?;
-            let rvec = core_cv::Point3_::new(
+            core_cv::Point3_::new(
                 *rvec_mat.at_2d::<T>(0, 0)?,
                 *rvec_mat.at_2d::<T>(1, 0)?,
                 *rvec_mat.at_2d::<T>(2, 0)?,
-            );
-            rvec
+            )
         };
         let tvec = core_cv::Point3_::new(translation.x, translation.y, translation.z);
 
@@ -376,7 +375,7 @@ where
 mod tests {
     use super::*;
     use crate::{IntoCv, TryIntoCv};
-    use anyhow::{anyhow, Result};
+    use anyhow::{Result};
     use approx::abs_diff_eq;
     use nalgebra::{U2, U3};
     use opencv::core as core_cv;
@@ -385,12 +384,12 @@ mod tests {
 
     #[test]
     fn convert_opencv_nalgebra() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..5000 {
             // FromCv
             {
-                let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
+                let cv_point = core_cv::Point2d::new(rng.random(), rng.random());
                 let na_point = na::Point2::<f64>::from_cv(&cv_point);
                 anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, na_point.x) && abs_diff_eq!(cv_point.y, na_point.y),
@@ -400,7 +399,7 @@ mod tests {
 
             // IntoCv
             {
-                let cv_point = core_cv::Point2d::new(rng.gen(), rng.gen());
+                let cv_point = core_cv::Point2d::new(rng.random(), rng.random());
                 let na_point: na::Point2<f64> = cv_point.into_cv();
                 anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, na_point.x) && abs_diff_eq!(cv_point.y, na_point.y),
@@ -414,12 +413,12 @@ mod tests {
                     2,
                     3,
                     vec![
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
                     ],
                 );
                 let cv_mat = core_cv::Mat::try_from_cv(&na_mat)?;
@@ -440,12 +439,12 @@ mod tests {
                     2,
                     3,
                     vec![
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
-                        rng.gen(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
+                        rng.random(),
                     ],
                 );
                 let cv_mat: core_cv::Mat = (&na_mat).try_into_cv()?;
@@ -493,16 +492,16 @@ mod tests {
 
     #[test]
     fn rvec_tvec_conversion() -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..5000 {
             let orig_isometry = {
                 let rotation = na::UnitQuaternion::from_euler_angles(
-                    rng.gen_range(0.0..(f64::consts::PI * 2.0)),
-                    rng.gen_range(0.0..(f64::consts::PI * 2.0)),
-                    rng.gen_range(0.0..(f64::consts::PI * 2.0)),
+                    rng.random_range(0.0..(f64::consts::PI * 2.0)),
+                    rng.random_range(0.0..(f64::consts::PI * 2.0)),
+                    rng.random_range(0.0..(f64::consts::PI * 2.0)),
                 );
-                let translation = na::Translation3::new(rng.gen(), rng.gen(), rng.gen());
+                let translation = na::Translation3::new(rng.random(), rng.random(), rng.random());
                 na::Isometry3::from_parts(translation, rotation)
             };
             let pose = OpenCvPose::<Mat>::try_from_cv(orig_isometry)?;
