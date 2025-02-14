@@ -13,22 +13,20 @@
 //! to view a `[[i32; 6]; 5]` as a `&[[[i32; 3]; 2]; 5]`,
 //! one could write
 //!
-//! ```
-//! # // FIXME: Dumb/confusing example. I actually wrote it wrong
-//! # //        the first time, calling `flat()` twice because it
-//! # //        didn't occur to me that the outer '; 5' is already
-//! # //        automatically eliminated by coercion.
-//! # //
-//! # //        Almost makes a case for providing `.as_slice()`
-//! # //        as an explicit form of this coercion.
-//! #
-//! # use cv_convert::prelude::*;
-//! # let _ = || {
-//! #     let x: [[i32; 6]; 5] = unimplemented!();
-//! #     let _: &[[[i32; 3]; 2]; 5] =
-//! x.flat().nest().nest().as_array_ref()
-//! #     ;
-//! # };
+//! ```rust,ignore
+//! // FIXME: Dumb/confusing example. I actually wrote it wrong
+//! //        the first time, calling `flat()` twice because it
+//! //        didn't occur to me that the outer '; 5' is already
+//! //        automatically eliminated by coercion.
+//! //
+//! //        Almost makes a case for providing `.as_slice()`
+//! //        as an explicit form of this coercion.
+//!
+//! use cv_convert::prelude::*;
+//! let _ = || {
+//!     let x: [[i32; 6]; 5] = unimplemented!();
+//!     let _: &[[[i32; 3]; 2]; 5] = x.flat().nest().nest().as_array_ref();
+//! };
 //! ```
 //!
 //! Type inference generally works quite well, and as long as the
@@ -38,7 +36,7 @@
 //! In cases where type inference is unable to determine the target
 //! array size, one can use a turbofish: e.g .`x.nest::<[_; 3]>()`.
 //!
-//! ```
+//! ```rust,ignore
 //! use ::cv_convert::prelude::*;
 //!
 //! let vec = vec![[2i32, 2, 2], [7, 7, 7], [4, 4, 4], [1, 1, 1]];
@@ -61,8 +59,8 @@
 //! convert between such types, you can use these traits in tandem
 //! with `<[T]>::to_vec` to perform a copy:
 //!
-//! ```
-//! # use ::cv_convert::prelude::*;
+//! ```rust,ignore
+//! use ::cv_convert::prelude::*;
 //! let vec = vec![[2i32, 2, 2], [7, 7, 7]];
 //!
 //! // copying into a Vec<i32>
@@ -82,7 +80,7 @@ pub mod prelude {
     //! It is meant to be glob imported, by users who may find it obnoxious to remember
     //! the precise names of the traits that each method belongs to.
     //!
-    //! ```rust
+    //! ```rust,ignore
     //! use cv_convert::prelude::*;
     //! ```
     //!

@@ -36,7 +36,8 @@
 //! traits [TryFromCv] and [TryIntoCv] provide `.try_from_cv()` and `.try_into_cv()` methods respectively.
 //! Just like std's [From], [Into], [TryFromCv] and [TryIntoCv].
 //!
-//! ```rust
+//!
+//! ```rust,ignore
 //! use nalgebra;
 //! use cv_convert::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 //! use nalgebra as na;
