@@ -12,6 +12,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "-D warnings"
+  RUST_BACKTRACE: 1
 
 jobs:
 
@@ -22,9 +25,14 @@ jobs:
 
     strategy:
       matrix:
-        ffmpeg_version: ["7.1"]
+        ffmpeg_version: ["6.0", "6.1", "7.0", "7.1"]
         feature: ["rsmpeg"]
+        include:
+          - ffmpeg_version: "7.1"
+            feature: "rsmpeg"
+            is_latest: true
       fail-fast: false
+      max-parallel: 2
 
     steps:
       - name: Checkout
