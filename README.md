@@ -1,22 +1,45 @@
 # cv-convert
 Convert computer vision data types in Rust
 
-Type conversions among famous Rust computer vision libraries. It
-supports the following crates:
+reference: [jerry73204](https://github.com/jerry73204/rust-cv-convert)
 
-reference:
-https://github.com/jerry73204/rust-cv-convert
+## Concept
 
-## sys related
-- [opencv](https://crates.io/crates/opencv)
-- [tch](https://crates.io/crates/tch)
-- [rsmpeg](https://crates.io/crates/rsmpeg)
+```mermaid
+graph TD
+    A[rsmpeg] --> B(image/imageproc)
+    B --> C(opencv)
+    C --> D(ndarray)
+    D --> E(nalgebra)
+    D --> G(tch)
+    G --> D
+    B --> F[fs]
+    F --> A
 
-## lib
-- [image](https://crates.io/crates/image)
-- [imageproc](https://crates.io/crates/imageproc)
-- [nalgebra](https://crates.io/crates/nalgebra)
-- [ndarray](https://crates.io/crates/ndarray)
+    style A fill:#FFE4E1,stroke:#FF6347
+    style B fill:#F0F8FF,stroke:#1E90FF
+    style C fill:#FFFACD,stroke:#FFD700
+    style D fill:#F0FFF0,stroke:#3CB371
+    style E fill:#E6E6FA,stroke:#9370DB
+    style G fill:#FFE4B5,stroke:#FFA500
+    style F fill:#F5F5F5,stroke:#696969
+
+    classDef video fill:#FFE4E1,stroke:#FF6347;
+    classDef image fill:#F0F8FF,stroke:#1E90FF;
+    classDef vision fill:#FFFACD,stroke:#FFD700;
+    classDef array fill:#F0FFF0,stroke:#3CB371;
+    classDef math fill:#E6E6FA,stroke:#9370DB;
+    classDef tensor fill:#FFE4B5,stroke:#FFA500;
+    classDef io fill:#F5F5F5,stroke:#696969;
+
+    class A video
+    class B image
+    class C vision
+    class D array
+    class E math
+    class G tensor
+    class F io
+```
 
 ## Usage
 
@@ -25,27 +48,22 @@ https://github.com/jerry73204/rust-cv-convert
 cv-convert = { git = "https://github.com/phial3/cv-convert", branch = "main" }
 ```
 
-The minimum supported `rustc` is 1.81. You may use older versions of
-the crate (>=0.6) in order to use `rustc` versions that do not support
-const-generics.
-
-## Cargo Features
+## Features
 - `default`: enable `image` + `imageproc` + `nalgebra` + `ndarray`
-- `tch`
-- `opencv`
-- `rsmpeg`
+- `tch`: optional,  (System Required installation: [tch](https://crates.io/crates/tch))
+- `opencv`: optional, (System Required installation: [opencv](https://crates.io/crates/opencv))
+- `rsmpeg`: optional, (System Required installation: [rsmpeg](https://crates.io/crates/rsmpeg))
 - `full` : enable `tch` + `opencv` + `rsmpeg`
-- `image`
-- `imageproc`
-- `nalgebra`
-- `ndarray`
+- `image`: optional, enable [image](https://crates.io/crates/image)
+- `imageproc`: optional, enable [imageproc](https://crates.io/crates/imageproc)
+- `nalgebra`: optional, enable [nalgebra](https://crates.io/crates/nalgebra)
+- `ndarray`: optional, enable [ndarray](https://crates.io/crates/ndarray)
 
-
-## Usage
+## Examples
 
 The crate provides `FromCv`, `TryFromCv`, `IntoCv`, `TryIntoCv` traits, which are similar to standard library's `From` and `Into`.
 
-```rust
+```rust,ignore,no_run
 use cv_convert::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use nalgebra as na;
 use opencv as cv;
@@ -68,25 +86,6 @@ let cv_mat: cv::core::Mat = na_mat.try_into_cv()?;
 ```
 
 ## Contribute to this Project
-
-### Add a new dependency version
-
-To add the new version of nalgebra 0.32 for cv-convert for example,
-open `cv-convert-generate/packages.toml` in the source repository. Add
-a new version to the list like this.
-
-```toml
-[package.nalgebra]
-versions = ["0.26", "0.27", "0.28", "0.29", "0.30", "0.31", "0.32"]
-use_default_features = true
-features = []
-```
-
-Run `make generate` at the top-level directory. It modifies Rust
-source files automatically. One extra step is to copy the snipplet in
-`cv-convert/generated/Cargo.toml.snipplet` and paste it to
-`cv-convert/Cargo.toml`.
-
 
 ### Add a new type conversion
 
