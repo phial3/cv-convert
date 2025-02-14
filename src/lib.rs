@@ -297,25 +297,3 @@ pub mod with_tch_nalgebra;
 
 #[cfg(all(feature = "tch", feature = "ndarray"))]
 pub mod with_tch_ndarray;
-
-/// Re-exports for convenience
-#[cfg(feature = "image")]
-pub use image;
-
-#[cfg(feature = "imageproc")]
-pub use imageproc;
-
-#[cfg(feature = "nalgebra")]
-pub use nalgebra;
-
-#[cfg(feature = "ndarray")]
-pub use ndarray;
-
-#[cfg(feature = "opencv")]
-pub use opencv;
-
-#[cfg(feature = "rsmpeg")]
-pub use rsmpeg;
-
-#[cfg(feature = "tch")]
-pub use tch;
