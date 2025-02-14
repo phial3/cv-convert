@@ -7,38 +7,55 @@ reference: [jerry73204](https://github.com/jerry73204/rust-cv-convert)
 
 ```mermaid
 graph TD
-    A[rsmpeg] --> B(image/imageproc)
-    B --> C(opencv)
-    C --> D(ndarray)
-    D --> E(nalgebra)
-    D --> G(tch)
-    G --> D
-    B --> F[fs]
-    F --> A
+%% 核心结构定义
+AF[AVFrame<br><i>视频原始数据</i>]:::avframe
+MA[Mat<br><i>OpenCV视觉数据</i>]:::mat
+IM[Image<br><i>通用图像数据</i>]:::image
+ND[ndarray<br><i>数值计算核心</i>]:::ndarray
 
-    style A fill:#FFE4E1,stroke:#FF6347
-    style B fill:#F0F8FF,stroke:#1E90FF
-    style C fill:#FFFACD,stroke:#FFD700
-    style D fill:#F0FFF0,stroke:#3CB371
-    style E fill:#E6E6FA,stroke:#9370DB
-    style G fill:#FFE4B5,stroke:#FFA500
-    style F fill:#F5F5F5,stroke:#696969
+%% 转换路径矩阵
+subgraph 以AVFrame为中心
+  AF <-.->|sws_scale<br>av_image_alloc| IM
+  AF <-.->|planes_to_3darray<br>av_image_copy| ND
+  AF <-.->|avframe_to_mat<br>Mat::new_ndarray| MA
+end
 
-    classDef video fill:#FFE4E1,stroke:#FF6347;
-    classDef image fill:#F0F8FF,stroke:#1E90FF;
-    classDef vision fill:#FFFACD,stroke:#FFD700;
-    classDef array fill:#F0FFF0,stroke:#3CB371;
-    classDef math fill:#E6E6FA,stroke:#9370DB;
-    classDef tensor fill:#FFE4B5,stroke:#FFA500;
-    classDef io fill:#F5F5F5,stroke:#696969;
+subgraph 以Mat为中心
+  MA <-.->|mat_to_ndarray<br>as_slice| ND
+  MA <-.->|mat_to_image<br>imencode/imdecode| IM
+  MA <-.->|mat_from_avframe<br>av_image_fill_arrays| AF
+end
 
-    class A video
-    class B image
-    class C vision
-    class D array
-    class E math
-    class G tensor
-    class F io
+subgraph 以Image为中心
+  IM <-.->|imageproc::ops<br>DynamicImage转换| ND
+  IM <-.->|image_to_avframe<br>save_to_memory| AF
+  IM <-.->|image_to_mat<br>open/保存临时文件| MA
+end
+
+classDef avframe fill:#FFEBEE,stroke:#FF5252;
+classDef mat fill:#FFF3E0,stroke:#FFB300;
+classDef image fill:#E3F2FD,stroke:#2196F3;
+classDef ndarray fill:#E8F5E9,stroke:#4CAF50;
+```
+
+> 异常处理矩阵：
+> 
+| 转换路径 |	可能异常	|解决方案 |
+|---------  | ------- | ------ |
+AVFrame→Mat	    | 色彩空间不匹配	|自动插入sws_scale转换上下文
+Image→ndarray   | 通道顺序差异(RGB vs BGR)	| 提供convert_channels特性方法
+Mat→Tensor	    | 内存对齐问题	| 使用aligned_alloc分配器
+
+
+```mermaid
+graph TD
+    Start{输入数据类型} --> |视频流| A[优先AVFrame中心]
+    Start --> |摄像头采集| B[优先Mat中心]
+    Start --> |图片文件| C[优先Image中心]
+    A --> D{需要视觉分析?} --> |是| E[转换为Mat]
+    A --> F{需要机器学习?} --> |是| G[转换为ndarray]
+    B --> H{需要持久化存储?} --> |是| I[转换为Image]
+    C --> J{需要视频编码?} --> |是| K[转换为AVFrame]
 ```
 
 ## Usage
