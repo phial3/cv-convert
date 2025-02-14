@@ -6,36 +6,41 @@ reference: [jerry73204](https://github.com/jerry73204/rust-cv-convert)
 ## Concept
 
 ```mermaid
-graph TD
-%% 核心结构定义
+graph LR
+%% 核心节点定义
 AF[AVFrame<br><i>视频原始数据</i>]:::avframe
-MA[Mat<br><i>OpenCV视觉数据</i>]:::mat
-IM[Image<br><i>通用图像数据</i>]:::image
-ND[ndarray<br><i>数值计算核心</i>]:::ndarray
+MA[Mat<br><i>OpenCV矩阵</i>]:::mat
+IM[Image<br><i>通用图像</i>]:::image
+ND[ndarray<br><i>数值数组</i>]:::ndarray
+TE[Tensor<br><i>深度学习张量</i>]:::tensor
 
 %% 转换路径矩阵
-subgraph 以AVFrame为中心
-  AF <-.->|sws_scale<br>av_image_alloc| IM
-  AF <-.->|planes_to_3darray<br>av_image_copy| ND
-  AF <-.->|avframe_to_mat<br>Mat::new_ndarray| MA
-end
+AF <-.->|FFmpeg sws_scale| MA
+AF <-.->|YUV2RGB转换| IM
+AF <-.->|planes_to_3darray| ND
+AF <-.->|CUDA内存映射| TE
 
-subgraph 以Mat为中心
-  MA <-.->|mat_to_ndarray<br>as_slice| ND
-  MA <-.->|mat_to_image<br>imencode/imdecode| IM
-  MA <-.->|mat_from_avframe<br>av_image_fill_arrays| AF
-end
+MA <-.->|Mat::from_slice| ND
+MA <-.->|imencode/imdecode| IM
+MA <-.->|Mat::to_gpu| TE
 
-subgraph 以Image为中心
-  IM <-.->|imageproc::ops<br>DynamicImage转换| ND
-  IM <-.->|image_to_avframe<br>save_to_memory| AF
-  IM <-.->|image_to_mat<br>open/保存临时文件| MA
-end
+IM <-.->|image::buffer| ND
+IM <-.->|image_to_tensor| TE
+IM <-.->|save_to_avframe| AF
+
+ND <-.->|ndarray_to_tensor| TE
+ND <-.->|reshape_to_mat| MA
+ND <-.->|as_image_buffer| IM
+
+TE <-.->|to_ndarray| ND
+TE <-.->|tensor_to_mat| MA
+TE <-.->|render_to_avframe| AF
 
 classDef avframe fill:#FFEBEE,stroke:#FF5252;
 classDef mat fill:#FFF3E0,stroke:#FFB300;
 classDef image fill:#E3F2FD,stroke:#2196F3;
 classDef ndarray fill:#E8F5E9,stroke:#4CAF50;
+classDef tensor fill:#F3E5F5,stroke:#9C27B0;
 ```
 
 > 异常处理矩阵：
@@ -49,13 +54,31 @@ Mat→Tensor	    | 内存对齐问题	| 使用aligned_alloc分配器
 
 ```mermaid
 graph TD
-    Start{输入数据类型} --> |视频流| A[优先AVFrame中心]
-    Start --> |摄像头采集| B[优先Mat中心]
-    Start --> |图片文件| C[优先Image中心]
-    A --> D{需要视觉分析?} --> |是| E[转换为Mat]
-    A --> F{需要机器学习?} --> |是| G[转换为ndarray]
-    B --> H{需要持久化存储?} --> |是| I[转换为Image]
-    C --> J{需要视频编码?} --> |是| K[转换为AVFrame]
+Start{选择起点} --> A[AVFrame]
+Start --> B[Mat]
+Start --> C[Image]
+Start --> D[ndarray]
+Start --> E[Tensor]
+
+A -->|实时流处理| F[保持AVFrame]
+A -->|视觉分析| G[转Mat]
+A -->|AI推理| H[转Tensor]
+
+B -->|算法优化| I[保持Mat]
+B -->|持久化存储| J[转Image]
+B -->|数值计算| K[转ndarray]
+
+C -->|编辑处理| L[保持Image]
+C -->|视频合成| M[转AVFrame]
+C -->|模型训练| N[转Tensor]
+
+D -->|科学计算| O[保持ndarray]
+D -->|可视化| P[转Mat]
+D -->|深度学习| Q[转Tensor]
+
+E -->|推理结果| R[保持Tensor]
+E -->|结果可视化| S[转Mat]
+E -->|视频编码| T[转AVFrame]
 ```
 
 ## Usage
