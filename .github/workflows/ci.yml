@@ -14,7 +14,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUST_LOG: info
-  RUST_FLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings"
   RUST_BACKTRACE: "full"
 
 jobs:
@@ -46,7 +46,6 @@ jobs:
             python3 \
             python3-pip \
             python3-dev \
-            ffmpeg \
             libavcodec-dev \
             libavdevice-dev \
             libavfilter-dev \
@@ -57,14 +56,36 @@ jobs:
             libopencv-dev \
             python3-opencv
 
+      # https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu
+      - name: Install FFmpegBuildTools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get -y install autoconf automake build-essential cmake \
+            git-core libass-dev libfreetype6-dev libgnutls28-dev libsdl2-dev \
+            libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev \
+            libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texinfo wget yasm \
+            zlib1g-dev nasm libx264-dev libx265-dev libnuma-dev \
+            libvpx-dev libfdk-aac-dev libmp3lame-dev libopus-dev
+
+      - name: Build Linux FFmpeg
+        run: bash scripts/linux_ffmpeg.rs
+
+      - name: export ffmpeg env
+      - run: |
+          export FFMPEG_PKG_CONFIG_PATH=${PWD}/tmp/ffmpeg_build/lib/pkgconfig
+          export FFMPEG_INCLUDE_DIR=${PWD}/tmp/ffmpeg_build/include
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build
         run: cargo build --features ${{ matrix.feature }} --verbose
 
-      - name: Run Test
+      - name: Test
         run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
+
+      - name: Clippy
+        run: cargo clippy --all --features ${{ matrix.feature }} --verbose -- -D warnings
 
   build-macos:
     name: build / macos / ffmpeg+opencv+pytorch
@@ -75,8 +96,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          brew install ffmpeg opencv pytorch pkg-config
+        run: brew install ffmpeg opencv pytorch pkg-config
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -125,7 +145,7 @@ jobs:
       #- name: Run Test
       #  run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
 
-  fmt:
+  lints:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
@@ -140,19 +160,3 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --examples --tests --all-features --all -- -D warnings
