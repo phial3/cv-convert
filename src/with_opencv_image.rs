@@ -47,19 +47,19 @@ impl TryFromCv<&image::DynamicImage> for Mat {
     type Error = Error;
 
     fn try_from_cv(from: &image::DynamicImage) -> Result<Self, Self::Error> {
-        use image::DynamicImage as D;
+        use image::DynamicImage;
 
         let mat = match from {
-            D::ImageLuma8(image) => image.try_into_cv()?,
-            D::ImageLumaA8(image) => image.try_into_cv()?,
-            D::ImageRgb8(image) => image.try_into_cv()?,
-            D::ImageRgba8(image) => image.try_into_cv()?,
-            D::ImageLuma16(image) => image.try_into_cv()?,
-            D::ImageLumaA16(image) => image.try_into_cv()?,
-            D::ImageRgb16(image) => image.try_into_cv()?,
-            D::ImageRgba16(image) => image.try_into_cv()?,
-            D::ImageRgb32F(image) => image.try_into_cv()?,
-            D::ImageRgba32F(image) => image.try_into_cv()?,
+            DynamicImage::ImageLuma8(image) => image.try_into_cv()?,
+            DynamicImage::ImageLumaA8(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgb8(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgba8(image) => image.try_into_cv()?,
+            DynamicImage::ImageLuma16(image) => image.try_into_cv()?,
+            DynamicImage::ImageLumaA16(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgb16(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgba16(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgb32F(image) => image.try_into_cv()?,
+            DynamicImage::ImageRgba32F(image) => image.try_into_cv()?,
             image => anyhow::bail!("the color type {:?} is not supported", image.color()),
         };
         Ok(mat)

@@ -28,16 +28,16 @@ mod utils {
     }
 
     pub fn tch_kind_to_opencv_depth(kind: tch::Kind) -> Result<i32> {
-        use tch::Kind as K;
+        use tch::Kind;
 
         let typ = match kind {
-            K::Uint8 => cv_core::CV_8U,
-            K::Int8 => cv_core::CV_8S,
-            K::Int16 => cv_core::CV_16S,
-            K::Half => cv_core::CV_16F,
-            K::Int => cv_core::CV_32S,
-            K::Float => cv_core::CV_32F,
-            K::Double => cv_core::CV_64F,
+            Kind::Uint8 => cv_core::CV_8U,
+            Kind::Int8 => cv_core::CV_8S,
+            Kind::Int16 => cv_core::CV_16S,
+            Kind::Half => cv_core::CV_16F,
+            Kind::Int => cv_core::CV_32S,
+            Kind::Float => cv_core::CV_32F,
+            Kind::Double => cv_core::CV_64F,
             kind => anyhow::bail!("unsupported tensor kind {:?}", kind),
         };
 
@@ -45,16 +45,16 @@ mod utils {
     }
 
     pub fn opencv_depth_to_tch_kind(depth: i32) -> Result<tch::Kind> {
-        use tch::Kind as K;
+        use tch::Kind;
 
         let kind = match depth {
-            cv_core::CV_8U => K::Uint8,
-            cv_core::CV_8S => K::Int8,
-            cv_core::CV_16S => K::Int16,
-            cv_core::CV_32S => K::Int,
-            cv_core::CV_16F => K::Half,
-            cv_core::CV_32F => K::Float,
-            cv_core::CV_64F => K::Double,
+            cv_core::CV_8U => Kind::Uint8,
+            cv_core::CV_8S => Kind::Int8,
+            cv_core::CV_16S => Kind::Int16,
+            cv_core::CV_32S => Kind::Int,
+            cv_core::CV_16F => Kind::Half,
+            cv_core::CV_32F => Kind::Float,
+            cv_core::CV_64F => Kind::Double,
             _ => anyhow::bail!("unsupported OpenCV Mat depth {}", depth),
         };
         Ok(kind)
