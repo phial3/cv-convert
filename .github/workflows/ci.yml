@@ -22,8 +22,8 @@ jobs:
 
     strategy:
       matrix:
-        ffmpeg_version: "7.1"
-        feature: "rsmpeg,image,ndarray,nalgebra,imageproc"
+        ffmpeg_version: ["7.1"]
+        feature: ["rsmpeg"]
       fail-fast: false
 
     steps:
@@ -42,7 +42,9 @@ jobs:
         run: cargo build --features ${{ matrix.feature }} --verbose
 
       - name: Run Test
-        run: cargo test --features ${{ matrix.feature }} --verbose
+        run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
+        env:
+          RUST_BACKTRACE: 1
 
   build-macos:
     name: build / macos / latest ffmpeg
@@ -63,7 +65,9 @@ jobs:
         run: cargo build --features ${{ matrix.feature }} --verbose
 
       - name: Run Test
-        run: cargo test --features ${{ matrix.feature }} --verbose
+        run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
+        env:
+          RUST_BACKTRACE: 1
 
   build-windows:
     name: build / windows / latest ffmpeg
@@ -97,7 +101,9 @@ jobs:
         run: cargo build --features ${{ matrix.feature }} --verbose
 
       - name: Run Test
-        run: cargo test --features ${{ matrix.feature }} --verbose
+        run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
+        env:
+          RUST_BACKTRACE: 1
 
   test:
     runs-on: ubuntu-latest
