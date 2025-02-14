@@ -2,16 +2,13 @@
 name = 'cv-convert'
 description = 'Type conversions among famous Rust computer vision libraries'
 version = '0.25.0'
-authors = ['jerry73204 <jerry73204@gmail.com>']
+authors = ['jerry73204 <jerry73204@gmail.com>', 'phial3']
 edition = '2021'
-documentation = 'https://docs.rs/cv-convert/'
-repository = 'https://github.com/jerry73204/rust-cv-convert.git'
-homepage = 'https://github.com/jerry73204/rust-cv-convert/'
+documentation = 'https://github.com/phial3/cv-convert'
+repository = 'https://github.com/phial3/cv-convert'
+homepage = 'https://github.com/phial3/cv-convert'
 readme = 'README.md'
 license = 'MIT'
-
-[package.metadata.docs.rs]
-features = ['docs-only']
 
 [features]
 default = [
@@ -24,11 +21,13 @@ image = ["dep:image"]
 ndarray = ["dep:ndarray"]
 nalgebra = ["dep:nalgebra"]
 imageproc = ["dep:imageproc"]
-# 系统依赖库
+# sys
 tch = ["dep:tch"]
 rsmpeg = ["dep:rsmpeg"]
 opencv = ["dep:opencv"]
 full = ["tch", "rsmpeg", "opencv"]
+# test
+test-tch = ["tch/download-libtorch"]
 
 [dev-dependencies]
 rand = '0.9'

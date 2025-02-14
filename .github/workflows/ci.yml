@@ -13,22 +13,19 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  RUSTFLAGS: "-D warnings"
-  RUST_BACKTRACE: 1
+  RUST_LOG: info
+  RUST_FLAGS: "-D warnings"
+  RUST_BACKTRACE: "full"
 
 jobs:
 
   build-linux:
-    name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    name: build / linux / ffmpeg+opencv+pytorch
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
-
     strategy:
       matrix:
         include:
-          - ffmpeg_version: "7.1"
-            feature: "rsmpeg"
-      fail-fast: false
+          - feature: "full,test-tch"
 
     steps:
       - name: Checkout
@@ -36,8 +33,29 @@ jobs:
 
       - name: Install dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            clang \
+            curl \
+            pkg-config \
+            software-properties-common \
+            wget \
+            cmake \
+            python3 \
+            python3-pip \
+            python3-dev \
+            ffmpeg \
+            libavcodec-dev \
+            libavdevice-dev \
+            libavfilter-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libopencv-dev \
+            python3-opencv
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,14 +63,11 @@ jobs:
       - name: Build
         run: cargo build --features ${{ matrix.feature }} --verbose
 
-      ## TODO: Failed test on linux
-      # undefined reference to symbol '__tls_get_addr@@GLIBC_2.3'
-      # collect2: error: ld returned 1 exit status
-      #- name: Run Test
-      #  run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
+      - name: Run Test
+        run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
 
   build-macos:
-    name: build / macos / latest ffmpeg
+    name: build / macos / ffmpeg+opencv+pytorch
     runs-on: macos-latest
 
     steps:
@@ -67,7 +82,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --all-features --verbose
 
       - name: Run Test
         run: cargo test --verbose -- --nocapture
@@ -110,51 +125,34 @@ jobs:
       #- name: Run Test
       #  run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
 
-  test:
+  fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:7.1-ubuntu
-    strategy:
-      matrix:
-        include:
-          - feature: "rsmpeg"
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          DEBIAN_FRONTEND=noninteractive apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
-
-      #     - name: Setup Rust
-      #       uses: dtolnay/rust-toolchain@stable
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@nightly
-
-      - name: Test
-        run: cargo +nightly test --features ${{ matrix.feature }} --verbose
-
-  lints:
-    runs-on: ubuntu-latest
-    container: jrottenberg/ffmpeg:7.1-ubuntu
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          DEBIAN_FRONTEND=noninteractive apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
-          components: rustfmt, clippy
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
-      - name: Rustfmt
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-features -- -D warnings
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --examples --tests --all-features --all -- -D warnings
