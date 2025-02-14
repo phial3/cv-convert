@@ -71,7 +71,7 @@ jobs:
         run: bash scripts/linux_ffmpeg.rs
 
       - name: export ffmpeg env
-      - run: |
+        run: |
           export FFMPEG_PKG_CONFIG_PATH=${PWD}/tmp/ffmpeg_build/lib/pkgconfig
           export FFMPEG_INCLUDE_DIR=${PWD}/tmp/ffmpeg_build/include
 
@@ -147,16 +147,16 @@ jobs:
 
   lints:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+      fail-fast: false
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          components: rustfmt
+      - run: cargo fmt --all -- --check
