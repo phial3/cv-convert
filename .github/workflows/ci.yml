@@ -71,9 +71,7 @@ jobs:
         run: bash scripts/linux_ffmpeg.rs
 
       - name: export ffmpeg env
-        run: |
-          export FFMPEG_INCLUDE_DIR=${PWD}/tmp/ffmpeg_build/include
-          export FFMPEG_PKG_CONFIG_PATH=${PWD}/tmp/ffmpeg_build/lib/pkgconfig
+        run: export FFMPEG_INCLUDE_DIR=${PWD}/tmp/ffmpeg_build/include
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

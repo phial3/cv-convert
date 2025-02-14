@@ -36,15 +36,15 @@ impl TryFromCv<&image::DynamicImage> for TchTensorAsImage {
     type Error = Error;
 
     fn try_from_cv(from: &image::DynamicImage) -> Result<Self, Self::Error> {
-        use image::DynamicImage as D;
+        use image::DynamicImage;
 
         let tensor = match from {
-            D::ImageLuma8(image) => image.into_cv(),
-            D::ImageLumaA8(image) => image.into_cv(),
-            D::ImageRgb8(image) => image.into_cv(),
-            D::ImageRgba8(image) => image.into_cv(),
-            D::ImageRgb32F(image) => image.into_cv(),
-            D::ImageRgba32F(image) => image.into_cv(),
+            DynamicImage::ImageLuma8(image) => image.into_cv(),
+            DynamicImage::ImageLumaA8(image) => image.into_cv(),
+            DynamicImage::ImageRgb8(image) => image.into_cv(),
+            DynamicImage::ImageRgba8(image) => image.into_cv(),
+            DynamicImage::ImageRgb32F(image) => image.into_cv(),
+            DynamicImage::ImageRgba32F(image) => image.into_cv(),
             _ => anyhow::bail!("the color type {:?} is not supported", from.color()),
         };
         Ok(tensor)

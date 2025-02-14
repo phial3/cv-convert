@@ -1,6 +1,5 @@
 use crate::{FromCv, TryFromCv};
 use anyhow::{Error, Result};
-use ndarray as nd;
 
 use to_ndarray_shape::*;
 mod to_ndarray_shape {
@@ -8,7 +7,7 @@ mod to_ndarray_shape {
 
     pub trait ToNdArrayShape<D>
     where
-        Self::Output: Sized + Into<nd::StrideShape<D>>,
+        Self::Output: Sized + Into<ndarray::StrideShape<D>>,
     {
         type Output;
         type Error;
@@ -16,7 +15,7 @@ mod to_ndarray_shape {
         fn to_ndarray_shape(&self) -> Result<Self::Output, Self::Error>;
     }
 
-    impl ToNdArrayShape<nd::IxDyn> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::IxDyn> for Vec<i64> {
         type Output = Vec<usize>;
         type Error = Error;
 
@@ -26,7 +25,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix0> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix0> for Vec<i64> {
         type Output = [usize; 0];
         type Error = Error;
 
@@ -40,7 +39,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix1> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix1> for Vec<i64> {
         type Output = [usize; 1];
         type Error = Error;
 
@@ -53,7 +52,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix2> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix2> for Vec<i64> {
         type Output = [usize; 2];
         type Error = Error;
 
@@ -66,7 +65,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix3> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix3> for Vec<i64> {
         type Output = [usize; 3];
         type Error = Error;
 
@@ -79,7 +78,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix4> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix4> for Vec<i64> {
         type Output = [usize; 4];
         type Error = Error;
 
@@ -92,7 +91,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix5> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix5> for Vec<i64> {
         type Output = [usize; 5];
         type Error = Error;
 
@@ -111,7 +110,7 @@ mod to_ndarray_shape {
         }
     }
 
-    impl ToNdArrayShape<nd::Ix6> for Vec<i64> {
+    impl ToNdArrayShape<ndarray::Ix6> for Vec<i64> {
         type Output = [usize; 6];
         type Error = Error;
 
@@ -132,9 +131,9 @@ mod to_ndarray_shape {
     }
 }
 
-impl<A, D> TryFromCv<tch::Tensor> for nd::Array<A, D>
+impl<A, D> TryFromCv<tch::Tensor> for ndarray::Array<A, D>
 where
-    D: nd::Dimension,
+    D: ndarray::Dimension,
     A: tch::kind::Element,
     Vec<A>: TryFrom<tch::Tensor, Error = tch::TchError>,
     Vec<i64>: ToNdArrayShape<D, Error = Error>,
@@ -158,9 +157,9 @@ where
     }
 }
 
-impl<A, D> TryFromCv<&tch::Tensor> for nd::Array<A, D>
+impl<A, D> TryFromCv<&tch::Tensor> for ndarray::Array<A, D>
 where
-    D: nd::Dimension,
+    D: ndarray::Dimension,
     A: tch::kind::Element,
     Vec<A>: TryFrom<tch::Tensor, Error = tch::TchError>,
     Vec<i64>: ToNdArrayShape<D, Error = Error>,
@@ -172,13 +171,13 @@ where
     }
 }
 
-impl<A, S, D> FromCv<&nd::ArrayBase<S, D>> for tch::Tensor
+impl<A, S, D> FromCv<&ndarray::ArrayBase<S, D>> for tch::Tensor
 where
     A: tch::kind::Element + Clone,
-    S: nd::RawData<Elem = A> + nd::Data,
-    D: nd::Dimension,
+    S: ndarray::RawData<Elem = A> + ndarray::Data,
+    D: ndarray::Dimension,
 {
-    fn from_cv(from: &nd::ArrayBase<S, D>) -> Self {
+    fn from_cv(from: &ndarray::ArrayBase<S, D>) -> Self {
         let shape: Vec<_> = from.shape().iter().map(|&s| s as i64).collect();
 
         match from.as_slice() {
@@ -191,13 +190,13 @@ where
     }
 }
 
-impl<A, S, D> FromCv<nd::ArrayBase<S, D>> for tch::Tensor
+impl<A, S, D> FromCv<ndarray::ArrayBase<S, D>> for tch::Tensor
 where
     A: tch::kind::Element + Clone,
-    S: nd::RawData<Elem = A> + nd::Data,
-    D: nd::Dimension,
+    S: ndarray::RawData<Elem = A> + ndarray::Data,
+    D: ndarray::Dimension,
 {
-    fn from_cv(from: nd::ArrayBase<S, D>) -> Self {
+    fn from_cv(from: ndarray::ArrayBase<S, D>) -> Self {
         Self::from_cv(&from)
     }
 }
@@ -218,7 +217,7 @@ mod tests {
             let s2 = 5;
 
             let tensor = tch::Tensor::randn([s0, s1, s2], tch::kind::FLOAT_CPU);
-            let array: nd::ArrayD<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::ArrayD<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = itertools::iproduct!(0..s0, 0..s1, 0..s2).all(|(i0, i1, i2)| {
                 let lhs: f32 = tensor.i((i0, i1, i2)).try_into().unwrap();
@@ -232,7 +231,7 @@ mod tests {
         // Array0
         {
             let tensor = tch::Tensor::randn([], tch::kind::FLOAT_CPU);
-            let array: nd::Array0<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array0<f32> = (&tensor).try_into_cv()?;
             let lhs: f32 = tensor.try_into().unwrap();
             let rhs = array[()];
             anyhow::ensure!(lhs == rhs, "value mismatch");
@@ -242,7 +241,7 @@ mod tests {
         {
             let s0 = 10;
             let tensor = tch::Tensor::randn([s0], tch::kind::FLOAT_CPU);
-            let array: nd::Array1<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array1<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = (0..s0).all(|ind| {
                 let lhs: f32 = tensor.i((ind,)).try_into().unwrap();
@@ -259,7 +258,7 @@ mod tests {
             let s1 = 5;
 
             let tensor = tch::Tensor::randn([s0, s1], tch::kind::FLOAT_CPU);
-            let array: nd::Array2<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array2<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = itertools::iproduct!(0..s0, 0..s1).all(|(i0, i1)| {
                 let lhs: f32 = tensor.i((i0, i1)).try_into().unwrap();
@@ -277,7 +276,7 @@ mod tests {
             let s2 = 7;
 
             let tensor = tch::Tensor::randn([s0, s1, s2], tch::kind::FLOAT_CPU);
-            let array: nd::Array3<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array3<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = itertools::iproduct!(0..s0, 0..s1, 0..s2).all(|(i0, i1, i2)| {
                 let lhs: f32 = tensor.i((i0, i1, i2)).try_into().unwrap();
@@ -296,7 +295,7 @@ mod tests {
             let s3 = 11;
 
             let tensor = tch::Tensor::randn([s0, s1, s2, s3], tch::kind::FLOAT_CPU);
-            let array: nd::Array4<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array4<f32> = (&tensor).try_into_cv()?;
 
             let is_correct =
                 itertools::iproduct!(0..s0, 0..s1, 0..s2, 0..s3).all(|(i0, i1, i2, i3)| {
@@ -317,7 +316,7 @@ mod tests {
             let s4 = 13;
 
             let tensor = tch::Tensor::randn([s0, s1, s2, s3, s4], tch::kind::FLOAT_CPU);
-            let array: nd::Array5<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array5<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = itertools::iproduct!(0..s0, 0..s1, 0..s2, 0..s3, 0..s4).all(
                 |(i0, i1, i2, i3, i4)| {
@@ -346,7 +345,7 @@ mod tests {
             let s5 = 17;
 
             let tensor = tch::Tensor::randn([s0, s1, s2, s3, s4, s5], tch::kind::FLOAT_CPU);
-            let array: nd::Array6<f32> = (&tensor).try_into_cv()?;
+            let array: ndarray::Array6<f32> = (&tensor).try_into_cv()?;
 
             let is_correct = itertools::iproduct!(0..s0, 0..s1, 0..s2, 0..s3, 0..s4, 0..s5).all(
                 |(i0, i1, i2, i3, i4, i5)| {
@@ -377,7 +376,7 @@ mod tests {
         let s1 = 3;
         let s2 = 4;
 
-        let array = nd::Array3::<f32>::from_shape_simple_fn([s0, s1, s2], || rng.random());
+        let array = ndarray::Array3::<f32>::from_shape_simple_fn([s0, s1, s2], || rng.random());
         let array = array.reversed_axes();
 
         let tensor = tch::Tensor::from_cv(&array);
