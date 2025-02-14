@@ -29,7 +29,6 @@ jobs:
           - ffmpeg_version: "7.1"
             feature: "rsmpeg"
       fail-fast: false
-      max-parallel: 2
 
     steps:
       - name: Checkout
@@ -48,8 +47,6 @@ jobs:
 
       - name: Run Test
         run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
-        env:
-          RUST_BACKTRACE: 1
 
   build-macos:
     name: build / macos / latest ffmpeg
@@ -61,26 +58,27 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install ffmpeg pkg-config
+          brew install ffmpeg opencv pytorch pkg-config
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build
-        run: cargo build --features ${{ matrix.feature }} --verbose
+        run: cargo build --verbose
 
       - name: Run Test
-        run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
-        env:
-          RUST_BACKTRACE: 1
+        run: cargo test --verbose -- --nocapture
 
   build-windows:
     name: build / windows / latest ffmpeg
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - feature: "rsmpeg"
 
     env:
       FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
-      RUST_BACKTRACE: 1
 
     steps:
       - name: Checkout
@@ -107,12 +105,14 @@ jobs:
 
       - name: Run Test
         run: cargo test --features ${{ matrix.feature }} --verbose -- --nocapture
-        env:
-          RUST_BACKTRACE: 1
 
   test:
     runs-on: ubuntu-latest
     container: jrottenberg/ffmpeg:7.1-ubuntu
+    strategy:
+      matrix:
+        include:
+          - feature: "rsmpeg"
 
     steps:
       - name: Checkout
@@ -153,4 +153,4 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all --features ${{ matrix.feature }} -- -D warnings
+        run: cargo clippy --all-features -- -D warnings
