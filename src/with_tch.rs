@@ -1,8 +1,5 @@
-use crate::{
-    common::prelude::*,
-    FromCv, TryFromCv
-};
-
+use crate::common::prelude::*;
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 
 macro_rules! impl_from_array {
@@ -16,9 +13,8 @@ macro_rules! impl_from_array {
                 anyhow::ensure!(from.device() == tch::Device::Cpu);
                 anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
                 anyhow::ensure!(from.size() == &[N as i64]);
-                let slice: &[$elem] = unsafe {
-                    std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N)
-                };
+                let slice: &[$elem] =
+                    unsafe { std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N) };
                 Ok(slice.as_array_ref())
             }
         }
@@ -32,9 +28,8 @@ macro_rules! impl_from_array {
                 anyhow::ensure!(from.device() == tch::Device::Cpu);
                 anyhow::ensure!(from.kind() == <$elem as tch::kind::Element>::KIND);
                 anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64]);
-                let slice: &[$elem] = unsafe {
-                    std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2)
-                };
+                let slice: &[$elem] =
+                    unsafe { std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2) };
                 Ok(slice.nest().as_array_ref())
             }
         }
@@ -89,7 +84,10 @@ macro_rules! impl_from_array {
                     from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]
                 );
                 let slice: &[$elem] = unsafe {
-                    std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4 * N5)
+                    std::slice::from_raw_parts(
+                        from.data_ptr() as *mut $elem,
+                        N1 * N2 * N3 * N4 * N5,
+                    )
                 };
                 Ok(slice.nest().nest().nest().nest().as_array_ref())
             }
@@ -115,7 +113,10 @@ macro_rules! impl_from_array {
                         == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64, N6 as i64]
                 );
                 let slice: &[$elem] = unsafe {
-                    std::slice::from_raw_parts(from.data_ptr() as *mut $elem, N1 * N2 * N3 * N4 * N5 * N6)
+                    std::slice::from_raw_parts(
+                        from.data_ptr() as *mut $elem,
+                        N1 * N2 * N3 * N4 * N5 * N6,
+                    )
                 };
                 Ok(slice.nest().nest().nest().nest().nest().as_array_ref())
             }
@@ -182,7 +183,9 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-                anyhow::ensure!(from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]);
+                anyhow::ensure!(
+                    from.size() == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64]
+                );
                 let mut array = [[[[[Default::default(); N5]; N4]; N3]; N2]; N1];
                 from.f_copy_data(
                     array.flat_mut().flat_mut().flat_mut().flat_mut(),
@@ -204,7 +207,7 @@ macro_rules! impl_from_array {
             type Error = Error;
 
             fn try_from_cv(from: &tch::Tensor) -> Result<Self, Self::Error> {
-               anyhow:: ensure!(
+                anyhow::ensure!(
                     from.size()
                         == &[N1 as i64, N2 as i64, N3 as i64, N4 as i64, N5 as i64, N6 as i64]
                 );

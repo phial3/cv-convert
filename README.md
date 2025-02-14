@@ -1,4 +1,5 @@
-# cv-convert: Convert computer vision data types in Rust
+# cv-convert
+Convert computer vision data types in Rust
 
 Type conversions among famous Rust computer vision libraries. It
 supports the following crates:
@@ -6,34 +7,22 @@ supports the following crates:
 reference:
 https://github.com/jerry73204/rust-cv-convert
 
+## sys related
+- [opencv](https://crates.io/crates/opencv)
+- [tch](https://crates.io/crates/tch)
+- [rsmpeg](https://crates.io/crates/rsmpeg)
+
+## lib
 - [image](https://crates.io/crates/image)
 - [imageproc](https://crates.io/crates/imageproc)
 - [nalgebra](https://crates.io/crates/nalgebra)
-- [opencv](https://crates.io/crates/opencv)
-- [tch](https://crates.io/crates/tch)
 - [ndarray](https://crates.io/crates/ndarray)
 
 ## Usage
 
-Run `cargo add cv-convert` to add this crate to your project. In the
-default setting, up-to-date dependency versions are used.
-
-If you desire to enable specified dependency versions. Add
-`default-features = false` and select crate versions as Cargo
-features. For example, the feature `nalgebra_0-30` enables nalgebra
-0.30.x.
-
 ```toml
-[dependencies.cv-convert]
-version = 'x.y.z'  # Please look up the recent version on crates.io
-default-features = false
-features = [
-    'image',
-    'opencv',
-    'tch',
-    'nalgebra',
-    'ndarray',
-]
+[dependencies]
+cv-convert = { git = "https://github.com/phial3/cv-convert", branch = "main" }
 ```
 
 The minimum supported `rustc` is 1.81. You may use older versions of
@@ -41,30 +30,16 @@ the crate (>=0.6) in order to use `rustc` versions that do not support
 const-generics.
 
 ## Cargo Features
+- `default`: enable `image` + `imageproc` + `nalgebra` + `ndarray`
+- `tch`
+- `opencv`
+- `rsmpeg`
+- `full` : enable `tch` + `opencv` + `rsmpeg`
+- `image`
+- `imageproc`
+- `nalgebra`
+- `ndarray`
 
-### opencv
-
-- `opencv 0.93`
-
-### image
-
-- `image 0.25`
-
-### imageproc
-
-- `imageproc 0.25`
-
-### ndarray
-
-- `ndarray 0.16`
-
-### nalgebra
-
-- `nalgebra 0.33`
-
-### tch
-
-- `tch 0.13`
 
 ## Usage
 

@@ -1,4 +1,5 @@
-use crate::{FromCv, IntoCv, TchTensorAsImage, TchTensorImageShape, TryFromCv};
+use crate::with_tch::{TchTensorAsImage, TchTensorImageShape};
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use std::ops::Deref;
 
@@ -6,7 +7,7 @@ impl<P, Container> FromCv<&image::ImageBuffer<P, Container>> for TchTensorAsImag
 where
     P: image::Pixel + 'static,
     P::Subpixel: 'static + tch::kind::Element,
-    Container: Deref<Target=[P::Subpixel]>,
+    Container: Deref<Target = [P::Subpixel]>,
 {
     fn from_cv(from: &image::ImageBuffer<P, Container>) -> Self {
         let (width, height) = from.dimensions();
@@ -24,7 +25,7 @@ impl<P, Container> FromCv<image::ImageBuffer<P, Container>> for TchTensorAsImage
 where
     P: image::Pixel + 'static,
     P::Subpixel: 'static + tch::kind::Element,
-    Container: Deref<Target=[P::Subpixel]>,
+    Container: Deref<Target = [P::Subpixel]>,
 {
     fn from_cv(from: image::ImageBuffer<P, Container>) -> Self {
         Self::from_cv(&from)

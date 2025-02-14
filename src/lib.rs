@@ -205,91 +205,116 @@ pub mod prelude {
 }
 
 mod common;
-
 mod macros;
 use macros::*;
 
-mod traits;
+pub mod traits;
 pub use traits::*;
 
-// openCV
-has_opencv! {
-    mod with_opencv;
-    pub use with_opencv::*;
-}
+/// 基础工具库模块
+#[cfg(feature = "image")]
+pub mod with_image;
 
-// tch
-has_tch! {
-    mod with_tch;
-    pub use with_tch::*;
-}
+#[cfg(feature = "imageproc")]
+pub mod with_imageproc;
 
-// tch and image
-has_tch! {
-    has_image! {
-        mod with_tch_image;
-        pub use with_tch_image::*;
-    }
-}
+#[cfg(feature = "nalgebra")]
+pub mod with_nalgebra;
 
-// tch and ndarray
-has_tch! {
-    has_ndarray! {
-        mod with_tch_ndarray;
-        pub use with_tch_ndarray::*;
-    }
-}
+#[cfg(feature = "ndarray")]
+pub mod with_ndarray;
 
-// image and opencv
-has_image! {
-    has_opencv! {
-        mod with_opencv_image;
-        pub use with_opencv_image::*;
-    }
-}
+/// 工具库组合模块
+#[cfg(all(feature = "imageproc", feature = "nalgebra"))]
+pub mod with_imageproc_nalgebra;
 
-// imageproc and opencv
-has_imageproc! {
-    has_opencv! {
-        mod with_opencv_imageproc;
-        pub use with_opencv_imageproc::*;
-    }
-}
+#[cfg(all(feature = "imageproc", feature = "ndarray"))]
+pub mod with_imageproc_ndarray;
 
-// nalgebra and opencv
-has_nalgebra! {
-    has_opencv! {
-        mod with_opencv_nalgebra;
-        pub use with_opencv_nalgebra::*;
-    }
-}
+#[cfg(all(feature = "nalgebra", feature = "image"))]
+pub mod with_nalgebra_image;
 
-// tch and opencv
-has_tch! {
-    has_opencv! {
-        mod with_opencv_tch;
-        pub use with_opencv_tch::*;
-    }
-}
+#[cfg(all(feature = "nalgebra", feature = "ndarray"))]
+pub mod with_nalgebra_ndarray;
 
-// opencv and ndarray
-has_opencv! {
-    has_ndarray! {
-        mod with_opencv_ndarray;
-        pub use with_opencv_ndarray::*;
-    }
-}
+#[cfg(all(feature = "ndarray", feature = "image"))]
+pub mod with_ndarray_image;
 
-has_rsmpeg! {
-    //  opencv and rsmpeg
-    has_opencv! {
-        mod with_opencv_rsmpeg;
-        pub use with_opencv_rsmpeg::*;
-    }
+/// OpenCV 相关模块
+#[cfg(feature = "opencv")]
+pub mod with_opencv;
 
-    // rsmpeg and image
-    has_image! {
-        mod with_rsmpeg_image;
-        pub use with_rsmpeg_image::*;
-    }
-}
+#[cfg(all(feature = "opencv", feature = "image"))]
+pub mod with_opencv_image;
+
+#[cfg(all(feature = "opencv", feature = "imageproc"))]
+pub mod with_opencv_imageproc;
+
+#[cfg(all(feature = "opencv", feature = "nalgebra"))]
+pub mod with_opencv_nalgebra;
+
+#[cfg(all(feature = "opencv", feature = "ndarray"))]
+pub mod with_opencv_ndarray;
+
+#[cfg(all(feature = "opencv", feature = "rsmpeg"))]
+pub mod with_opencv_rsmpeg;
+
+#[cfg(all(feature = "opencv", feature = "tch"))]
+pub mod with_opencv_tch;
+
+/// FFmpeg (rsmpeg) 相关模块
+#[cfg(feature = "rsmpeg")]
+pub mod with_rsmpeg;
+
+#[cfg(all(feature = "rsmpeg", feature = "image"))]
+pub mod with_rsmpeg_image;
+
+#[cfg(all(feature = "rsmpeg", feature = "imageproc"))]
+pub mod with_rsmpeg_imageproc;
+
+#[cfg(all(feature = "rsmpeg", feature = "nalgebra"))]
+pub mod with_rsmpeg_nalgebra;
+
+#[cfg(all(feature = "rsmpeg", feature = "ndarray"))]
+pub mod with_rsmpeg_ndarray;
+
+#[cfg(all(feature = "rsmpeg", feature = "tch"))]
+pub mod with_rsmpeg_tch;
+
+/// PyTorch (tch) 相关模块
+#[cfg(feature = "tch")]
+pub mod with_tch;
+
+#[cfg(all(feature = "tch", feature = "image"))]
+pub mod with_tch_image;
+
+#[cfg(all(feature = "tch", feature = "imageproc"))]
+pub mod with_tch_imageproc;
+
+#[cfg(all(feature = "tch", feature = "nalgebra"))]
+pub mod with_tch_nalgebra;
+
+#[cfg(all(feature = "tch", feature = "ndarray"))]
+pub mod with_tch_ndarray;
+
+/// Re-exports for convenience
+#[cfg(feature = "image")]
+pub use image;
+
+#[cfg(feature = "imageproc")]
+pub use imageproc;
+
+#[cfg(feature = "nalgebra")]
+pub use nalgebra;
+
+#[cfg(feature = "ndarray")]
+pub use ndarray;
+
+#[cfg(feature = "opencv")]
+pub use opencv;
+
+#[cfg(feature = "rsmpeg")]
+pub use rsmpeg;
+
+#[cfg(feature = "tch")]
+pub use tch;

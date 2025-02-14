@@ -125,7 +125,7 @@ mod to_ndarray_shape {
                     s4 as usize,
                     s5 as usize,
                 ],
-                other =>anyhow::bail!("expect one dimension, but get {:?}", other),
+                other => anyhow::bail!("expect one dimension, but get {:?}", other),
             };
             Ok(shape)
         }

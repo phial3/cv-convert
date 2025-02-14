@@ -1,4 +1,4 @@
-use crate::{FromCv, TryFromCv, TryIntoCv};
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use nalgebra::{self as na, geometry as geo};
 use opencv::{calib3d, core as cv_core, prelude::*};
@@ -75,7 +75,10 @@ impl TryFromCv<&OpenCvPose<&cv_core::Mat>> for geo::Isometry3<f64> {
     type Error = Error;
 
     fn try_from_cv(from: &OpenCvPose<&cv_core::Mat>) -> Result<Self> {
-        let OpenCvPose { rvec: rvec_mat, tvec: tvec_mat, } = *from;
+        let OpenCvPose {
+            rvec: rvec_mat,
+            tvec: tvec_mat,
+        } = *from;
         let rvec = cv_core::Point3d::try_from_cv(rvec_mat)?;
         let tvec = cv_core::Point3d::try_from_cv(tvec_mat)?;
         let isometry = TryFromCv::try_from_cv(OpenCvPose { rvec, tvec })?;
@@ -108,10 +111,15 @@ where
     type Error = Error;
 
     fn try_from_cv(from: &geo::Isometry3<T>) -> Result<OpenCvPose<cv_core::Point3_<T>>> {
-        let geo::Isometry3 { rotation, translation, .. } = from;
+        let geo::Isometry3 {
+            rotation,
+            translation,
+            ..
+        } = from;
 
         let rvec = {
-            let rotation_mat = cv_core::Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
+            let rotation_mat =
+                cv_core::Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = cv_core::Mat::zeros(3, 1, cv_core::CV_64FC1)?.to_mat()?;
             calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
             cv_core::Point3_::new(
@@ -141,15 +149,21 @@ impl TryFromCv<&geo::Isometry3<f64>> for OpenCvPose<cv_core::Mat> {
     type Error = Error;
 
     fn try_from_cv(from: &geo::Isometry3<f64>) -> Result<OpenCvPose<cv_core::Mat>> {
-        let geo::Isometry3 { rotation, translation, .. } = from;
+        let geo::Isometry3 {
+            rotation,
+            translation,
+            ..
+        } = from;
 
         let rvec = {
-            let rotation_mat: Mat = TryFromCv::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
+            let rotation_mat: Mat =
+                TryFromCv::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = cv_core::Mat::zeros(3, 1, cv_core::CV_64FC1)?.to_mat()?;
             calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
             rvec_mat
         };
-        let tvec = cv_core::Mat::from_slice(&[translation.x, translation.y, translation.z])?.try_clone()?;
+        let tvec = cv_core::Mat::from_slice(&[translation.x, translation.y, translation.z])?
+            .try_clone()?;
         Ok(OpenCvPose { rvec, tvec })
     }
 }
@@ -166,7 +180,11 @@ impl TryFromCv<&geo::Isometry3<f32>> for OpenCvPose<cv_core::Mat> {
     type Error = Error;
 
     fn try_from_cv(from: &geo::Isometry3<f32>) -> Result<OpenCvPose<cv_core::Mat>> {
-        let geo::Isometry3 { rotation, translation, .. } = from;
+        let geo::Isometry3 {
+            rotation,
+            translation,
+            ..
+        } = from;
 
         let rvec = {
             let rotation_mat = Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
@@ -175,7 +193,8 @@ impl TryFromCv<&geo::Isometry3<f32>> for OpenCvPose<cv_core::Mat> {
             rvec_mat
         };
         let tvec = Mat::from_slice(&[translation.x, translation.y, translation.z])?
-            .try_clone().unwrap();
+            .try_clone()
+            .unwrap();
 
         Ok(OpenCvPose { rvec, tvec })
     }
@@ -248,14 +267,16 @@ where
     R: na::Dim,
     C: na::Dim,
     S: na::base::storage::Storage<N, R, C>,
-    na::base::default_allocator::DefaultAllocator: na::base::allocator::Allocator<R, C> +
-    na::base::allocator::Allocator<C, R>,
+    na::base::default_allocator::DefaultAllocator:
+        na::base::allocator::Allocator<R, C> + na::base::allocator::Allocator<C, R>,
 {
     type Error = Error;
 
     fn try_from_cv(from: &na::Matrix<N, R, C, S>) -> Result<Self> {
         let nrows = from.nrows();
-        let mat = cv_core::Mat::from_slice(from.transpose().as_slice())?.reshape(1, nrows as i32)?.try_clone()?;
+        let mat = cv_core::Mat::from_slice(from.transpose().as_slice())?
+            .reshape(1, nrows as i32)?
+            .try_clone()?;
         Ok(mat)
     }
 }
@@ -375,7 +396,7 @@ where
 mod tests {
     use super::*;
     use crate::{IntoCv, TryIntoCv};
-    use anyhow::{Result};
+    use anyhow::Result;
     use approx::abs_diff_eq;
     use nalgebra::{U2, U3};
     use opencv::core as cv_core;

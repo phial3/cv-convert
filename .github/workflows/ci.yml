@@ -1,0 +1,147 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  build-linux:
+    name: build / linux / ffmpeg ${{ matrix.ffmpeg_version }}
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:${{ matrix.ffmpeg_version }}-ubuntu
+
+    strategy:
+      matrix:
+        include:
+          # FFmpeg 7.x
+          - ffmpeg_version: "7.1"
+            feature: "rsmpeg,image,ndarray,nalgebra,imageproc"
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --no-default-features --features ${{ matrix.feature }} --verbose
+
+      - name: Run Test
+        run: cargo test --no-default-features --features ${{ matrix.feature }} --verbose
+
+  build-macos:
+    name: build / macos / latest ffmpeg
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install ffmpeg pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --no-default-features --features ${{ matrix.feature }} --verbose
+
+      - name: Run Test
+        run: cargo test --no-default-features --features ${{ matrix.feature }} --verbose
+
+  build-windows:
+    name: build / windows / latest ffmpeg
+    runs-on: windows-latest
+
+    env:
+      FFMPEG_DOWNLOAD_URL: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          $VCINSTALLDIR = $(& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath)
+          Add-Content $env:GITHUB_ENV "LIBCLANG_PATH=${VCINSTALLDIR}\VC\Tools\LLVM\x64\bin`n"
+          Invoke-WebRequest "${env:FFMPEG_DOWNLOAD_URL}" -OutFile ffmpeg-release-full-shared.7z
+          7z x ffmpeg-release-full-shared.7z
+          mv ffmpeg-*/* ffmpeg/
+          Add-Content $env:GITHUB_ENV "FFMPEG_DIR=${pwd}\ffmpeg`n"
+          Add-Content $env:GITHUB_ENV "FFMPEG_INCLUDE_DIR=${pwd}\ffmpeg\include`n"
+          Add-Content $env:GITHUB_ENV "FFMPEG_LIBS_DIR=${pwd}\ffmpeg\lib`n"
+          Add-Content $env:GITHUB_ENV "FFMPEG_DLL_PATH=${pwd}\ffmpeg\bin`n"
+          Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --no-default-features --features ${{ matrix.feature }} --verbose
+
+      - name: Run Test
+        run: cargo test --no-default-features --features ${{ matrix.feature }} --verbose
+
+  test:
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:7.1-ubuntu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
+
+      #     - name: Setup Rust
+      #       uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Test
+        run: cargo +nightly test --no-default-features --features ${{ matrix.feature }} --verbose
+
+  lints:
+    runs-on: ubuntu-latest
+    container: jrottenberg/ffmpeg:7.1-ubuntu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates clang curl pkg-config
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rustfmt
+        run: cargo fmt --all -- --all-features --check
+
+      - name: Clippy
+        run: cargo clippy --all --no-default-features --features ${{ matrix.feature }} -- -D warnings

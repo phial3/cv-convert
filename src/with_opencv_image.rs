@@ -1,5 +1,5 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
-use crate::{TryFromCv, TryIntoCv};
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use opencv::{core::Mat, prelude::*};
 use std::ops::Deref;
@@ -9,7 +9,7 @@ impl<P, Container> TryFromCv<image::ImageBuffer<P, Container>> for Mat
 where
     P: image::Pixel,
     P::Subpixel: OpenCvElement,
-    Container: Deref<Target=[P::Subpixel]> + Clone,
+    Container: Deref<Target = [P::Subpixel]> + Clone,
 {
     type Error = Error;
     fn try_from_cv(from: image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
@@ -22,7 +22,7 @@ impl<P, Container> TryFromCv<&image::ImageBuffer<P, Container>> for Mat
 where
     P: image::Pixel,
     P::Subpixel: OpenCvElement,
-    Container: Deref<Target=[P::Subpixel]> + Clone,
+    Container: Deref<Target = [P::Subpixel]> + Clone,
 {
     type Error = Error;
     fn try_from_cv(from: &image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
@@ -30,13 +30,13 @@ where
         let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
         let mat = unsafe {
             Mat::new_rows_cols_with_data_unsafe(
-                height as i32, // 行数
-                width as i32,  // 列数
-                cv_type,       //
+                height as i32,               // 行数
+                width as i32,                // 列数
+                cv_type,                     //
                 from.as_ptr() as *mut _,     // 获取 ImageBuffer 底层数据切片
                 opencv::core::Mat_AUTO_STEP, // 步长
             )?
-                .try_clone()?
+            .try_clone()?
         };
         Ok(mat)
     }
@@ -93,7 +93,9 @@ impl TryFromCv<&Mat> for image::DynamicImage {
 
         let image: image::DynamicImage = match (depth, n_channels) {
             (opencv::core::CV_8U, 1) => mat_to_image_buffer_gray::<u8>(from, width, height).into(),
-            (opencv::core::CV_16U, 1) => mat_to_image_buffer_gray::<u16>(from, width, height).into(),
+            (opencv::core::CV_16U, 1) => {
+                mat_to_image_buffer_gray::<u16>(from, width, height).into()
+            }
             (opencv::core::CV_8U, 3) => mat_to_image_buffer_rgb::<u8>(from, width, height).into(),
             (opencv::core::CV_16U, 3) => mat_to_image_buffer_rgb::<u16>(from, width, height).into(),
             (opencv::core::CV_32F, 3) => mat_to_image_buffer_rgb::<f32>(from, width, height).into(),
@@ -161,7 +163,7 @@ where
 // &Mat -> rgb ImageBuffer
 impl<T> TryFromCv<&Mat> for image::ImageBuffer<image::Rgb<T>, Vec<T>>
 where
-    image::Rgb<T>: image::Pixel<Subpixel=T>,
+    image::Rgb<T>: image::Pixel<Subpixel = T>,
     T: OpenCvElement + image::Primitive + DataType,
 {
     type Error = Error;
@@ -193,7 +195,7 @@ where
 // Mat -> rgb ImageBuffer
 impl<T> TryFromCv<Mat> for image::ImageBuffer<image::Rgb<T>, Vec<T>>
 where
-    image::Rgb<T>: image::Pixel<Subpixel=T>,
+    image::Rgb<T>: image::Pixel<Subpixel = T>,
     T: OpenCvElement + image::Primitive + DataType,
 {
     type Error = Error;
@@ -230,14 +232,15 @@ fn mat_to_image_buffer_rgb<T>(
 ) -> image::ImageBuffer<image::Rgb<T>, Vec<T>>
 where
     T: image::Primitive + OpenCvElement + DataType,
-    image::Rgb<T>: image::Pixel<Subpixel=T>,
+    image::Rgb<T>: image::Pixel<Subpixel = T>,
 {
     type Image<T> = image::ImageBuffer<image::Rgb<T>, Vec<T>>;
 
     match mat.as_slice::<T>() {
         Ok(slice) => Image::<T>::from_vec(width, height, slice.to_vec()).unwrap(),
         Err(_) => Image::<T>::from_fn(width, height, |col, row| {
-            let opencv::core::Point3_::<T> { x, y, z } = *mat.at_2d(row as i32, col as i32).unwrap();
+            let opencv::core::Point3_::<T> { x, y, z } =
+                *mat.at_2d(row as i32, col as i32).unwrap();
             image::Rgb([x, y, z])
         }),
     }

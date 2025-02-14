@@ -15,23 +15,20 @@ features = ['docs-only']
 
 [features]
 default = [
-    'tch',
-    'rsmpeg',
-    'ndarray',
-    'opencv',
-    'nalgebra',
-    'image',
-    'imageproc',
+    "image",
+    "ndarray",
+    "nalgebra",
+    "imageproc",
 ]
-docs-only = [
-    'tch',
-    'rsmpeg',
-    'ndarray',
-    'opencv',
-    'nalgebra',
-    'image',
-    'imageproc',
-]
+image = ["dep:image"]
+ndarray = ["dep:ndarray"]
+nalgebra = ["dep:nalgebra"]
+imageproc = ["dep:imageproc"]
+# 系统依赖库
+tch = ["dep:tch"]
+rsmpeg = ["dep:rsmpeg"]
+opencv = ["dep:opencv"]
+full = ["tch", "rsmpeg", "opencv"]
 
 [dev-dependencies]
 rand = '0.9'
@@ -42,24 +39,12 @@ itertools = '0.14'
 half = '2.4'
 anyhow = '1.0'
 num-traits = '0.2'
-tch = { version = '0.18', default-features = true, optional = true}
 image = { version = '0.25', default-features = true, optional = true }
 nalgebra = { version = '0.33', default-features = true, optional = true }
 ndarray = { version = '0.16', default-features = true, optional = true }
 imageproc = { version = '0.25', default-features = true, optional = true }
+tch = { version = '0.18', default-features = true, optional = true}
+opencv = { version = '0.94', default-features = true, optional = true, features = ["clang-runtime"] }
 rsmpeg = { git = "https://github.com/larksuite/rsmpeg", branch = "master", optional = true, features = [
     "ffmpeg7", "link_system_ffmpeg"
-] }
-opencv = { version = '0.94', optional = true, features = [
-    "dnn",
-    "videoio",
-    "highgui",
-    "imgproc",
-    "imgcodecs",
-    "calib3d",
-    "features2d",
-    "objdetect",
-    "tracking",
-    "stitching",
-    "clang-runtime",
 ] }

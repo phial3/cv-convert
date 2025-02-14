@@ -1,5 +1,5 @@
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use opencv::core as cv_core;
-use crate::FromCv;
 
 impl<T> FromCv<&imageproc::point::Point<T>> for cv_core::Point_<T>
 where
@@ -39,10 +39,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{FromCv, IntoCv};
     use anyhow::Result;
     use approx::abs_diff_eq;
     use opencv::core as cv_core;
-    use crate::{FromCv, IntoCv};
     use rand::prelude::*;
     use std::f64;
 
@@ -57,17 +57,20 @@ mod tests {
                 let cv_point = cv_core::Point2d::new(rng.random(), rng.random());
                 let imageproc_point = imageproc::point::Point::<f64>::from_cv(&cv_point);
                 anyhow::ensure!(
-                    abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
+                    abs_diff_eq!(cv_point.x, imageproc_point.x)
+                        && abs_diff_eq!(cv_point.y, imageproc_point.y),
                     "point conversion failed"
                 );
             }
 
             // imageproc to opencv
             {
-                let imageproc_point = imageproc::point::Point::<f64>::new(rng.random(), rng.random());
+                let imageproc_point =
+                    imageproc::point::Point::<f64>::new(rng.random(), rng.random());
                 let cv_point = cv_core::Point2d::from_cv(&imageproc_point);
                 anyhow::ensure!(
-                    abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),
+                    abs_diff_eq!(imageproc_point.x, cv_point.x)
+                        && abs_diff_eq!(imageproc_point.y, cv_point.y),
                     "point conversion failed"
                 );
             }
@@ -78,17 +81,20 @@ mod tests {
                 let cv_point = cv_core::Point2d::new(rng.random(), rng.random());
                 let imageproc_point: imageproc::point::Point<f64> = cv_point.into_cv();
                 anyhow::ensure!(
-                    abs_diff_eq!(cv_point.x, imageproc_point.x) && abs_diff_eq!(cv_point.y, imageproc_point.y),
+                    abs_diff_eq!(cv_point.x, imageproc_point.x)
+                        && abs_diff_eq!(cv_point.y, imageproc_point.y),
                     "point conversion failed"
                 );
             }
 
             // imageproc to opencv
             {
-                let imageproc_point = imageproc::point::Point::<f64>::new(rng.random(), rng.random());
+                let imageproc_point =
+                    imageproc::point::Point::<f64>::new(rng.random(), rng.random());
                 let cv_point: cv_core::Point2d = imageproc_point.into_cv();
                 anyhow::ensure!(
-                    abs_diff_eq!(imageproc_point.x, cv_point.x) && abs_diff_eq!(imageproc_point.y, cv_point.y),
+                    abs_diff_eq!(imageproc_point.x, cv_point.x)
+                        && abs_diff_eq!(imageproc_point.y, cv_point.y),
                     "point conversion failed"
                 );
             }

@@ -1,8 +1,7 @@
-use crate::{TryFromCv};
-
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use anyhow::{Error, Result};
 use half::f16;
 use opencv::{core as cv_core, prelude::*};
-use anyhow::{Error, Result};
 
 pub use element_type::*;
 mod element_type {
@@ -346,10 +345,10 @@ mod tests {
     #[test]
     fn test_type_name() -> Result<()> {
         let mat = cv_core::Mat::new_randn_2d(2, 3, cv_core::CV_32F)?;
-        assert_eq!(mat.type_name(), "CV_32FC1");  // 修正：添加通道数 C1
+        assert_eq!(mat.type_name(), "CV_32FC1"); // 修正：添加通道数 C1
 
         let mat = cv_core::Mat::new_randn_2d(2, 3, cv_core::CV_8UC3)?;
-        assert_eq!(mat.type_name(), "CV_8UC3");   // 这个是正确的，因为已经包含通道数 C3
+        assert_eq!(mat.type_name(), "CV_8UC3"); // 这个是正确的，因为已经包含通道数 C3
 
         // 添加更多测试用例以验证不同类型和通道数
         let mat = cv_core::Mat::new_randn_2d(2, 3, cv_core::CV_64F)?;

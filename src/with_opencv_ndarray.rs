@@ -1,8 +1,8 @@
 use crate::with_opencv::{MatExt as _, OpenCvElement};
-use crate::{TryFromCv, TryIntoCv};
-use anyhow::{Result};
+use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use anyhow::Result;
 use ndarray as nd;
-use opencv::{prelude::*};
+use opencv::prelude::*;
 
 impl<'a, A, D> TryFromCv<&'a Mat> for nd::ArrayView<'a, A, D>
 where
@@ -65,7 +65,9 @@ where
         };
         let array = from.as_standard_layout();
         let slice = array.as_slice().unwrap();
-        let mat = Mat::from_slice(slice)?.reshape_nd(*channels, shape)?.try_clone()?;
+        let mat = Mat::from_slice(slice)?
+            .reshape_nd(*channels, shape)?
+            .try_clone()?;
         Ok(mat)
     }
 }
