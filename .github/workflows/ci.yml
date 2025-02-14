@@ -25,12 +25,9 @@ jobs:
 
     strategy:
       matrix:
-        ffmpeg_version: ["6.0", "6.1", "7.0", "7.1"]
-        feature: ["rsmpeg"]
         include:
           - ffmpeg_version: "7.1"
             feature: "rsmpeg"
-            is_latest: true
       fail-fast: false
       max-parallel: 2
 
