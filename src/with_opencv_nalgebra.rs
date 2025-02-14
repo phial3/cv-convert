@@ -522,7 +522,8 @@ mod tests {
                     rng.random_range(0.0..(f64::consts::PI * 2.0)),
                     rng.random_range(0.0..(f64::consts::PI * 2.0)),
                 );
-                let translation = nalgebra::Translation3::new(rng.random(), rng.random(), rng.random());
+                let translation =
+                    nalgebra::Translation3::new(rng.random(), rng.random(), rng.random());
                 nalgebra::Isometry3::from_parts(translation, rotation)
             };
             let pose = OpenCvPose::<Mat>::try_from_cv(orig_isometry)?;
