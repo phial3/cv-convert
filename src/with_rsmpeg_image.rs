@@ -202,7 +202,7 @@ impl TryFromCv<&AVFrame> for image::RgbaImage {
                     }
                 }
                 Ok(buffer)
-            },
+            }
 
             // YUV420P => RGB (可以基于 ffmpeg 转换)
             format if format == ffi::AV_PIX_FMT_YUV420P => {
@@ -226,22 +226,25 @@ impl TryFromCv<&AVFrame> for image::RgbaImage {
                     for x in 0..width {
                         // Get YUV values
                         let y_val = y_data[y as usize * y_stride + x as usize] as f32;
-                        let u_val = u_data[(y as usize / 2) * u_stride + (x as usize / 2)] as f32 - 128.0;
-                        let v_val = v_data[(y as usize / 2) * v_stride + (x as usize / 2)] as f32 - 128.0;
+                        let u_val =
+                            u_data[(y as usize / 2) * u_stride + (x as usize / 2)] as f32 - 128.0;
+                        let v_val =
+                            v_data[(y as usize / 2) * v_stride + (x as usize / 2)] as f32 - 128.0;
 
                         // YUV to RGB conversion formulas (BT.601):
                         // R = Y + 1.402 * (V - 128)
                         // G = Y - 0.344136 * (U - 128) - 0.714136 * (V - 128)
                         // B = Y + 1.772 * (U - 128)
                         let r = (y_val + 1.402 * v_val).clamp(0.0, 255.0) as u8;
-                        let g = (y_val - 0.344136 * u_val - 0.714136 * v_val).clamp(0.0, 255.0) as u8;
+                        let g =
+                            (y_val - 0.344136 * u_val - 0.714136 * v_val).clamp(0.0, 255.0) as u8;
                         let b = (y_val + 1.772 * u_val).clamp(0.0, 255.0) as u8;
 
                         buffer.put_pixel(x, y, image::Rgba([r, g, b, 255]));
                     }
                 }
                 Ok(buffer)
-            },
+            }
 
             format => Err(Error::msg(format!("Unsupported pixel format: {}", format))),
         }
@@ -643,7 +646,10 @@ mod tests {
 
         // 验证转换结果（注意：YUV->RGB 转换可能有轻微的舍入误差）
         let first_pixel = rgb_image.get_pixel(0, 0);
-        println!("First pixel: ({}, {}, {})", first_pixel[0], first_pixel[1], first_pixel[2]);
+        println!(
+            "First pixel: ({}, {}, {})",
+            first_pixel[0], first_pixel[1], first_pixel[2]
+        );
         // FIXME: ffmpeg 转换之后是 255， 但是自定义转换之后不变
         // assert!((first_pixel[0] as i32 - 235).abs() <= 1);
 

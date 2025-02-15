@@ -1,7 +1,9 @@
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use nalgebra::geometry;
-use opencv::{calib3d, core as cv_core, prelude::*};
+use opencv::calib3d;
+use opencv::core as cv_core;
+use opencv::prelude::*;
 
 /// NOTE: for future maintainers: Since the matrixes need to accommodate any size Matrix, we are using nalgebra::OMatrix instead of SMatrix.
 ///

@@ -9,7 +9,8 @@ use crate::with_tch::{TchTensorAsImage, TchTensorImageShape};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 
 use anyhow::{Context, Error, Result};
-use opencv::{core as cv_core, prelude::*};
+use opencv::core as cv_core;
+use opencv::prelude::*;
 
 use utils::{TchImageMeta, TchTensorMeta};
 mod utils {
