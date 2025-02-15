@@ -226,20 +226,20 @@ pub mod with_nalgebra;
 pub mod with_ndarray;
 
 /// 工具库组合模块
+#[cfg(all(feature = "image", feature = "nalgebra"))]
+pub mod with_image_nalgebra;
+
 #[cfg(all(feature = "imageproc", feature = "nalgebra"))]
 pub mod with_imageproc_nalgebra;
 
 #[cfg(all(feature = "imageproc", feature = "ndarray"))]
 pub mod with_imageproc_ndarray;
 
-#[cfg(all(feature = "nalgebra", feature = "image"))]
-pub mod with_nalgebra_image;
-
-#[cfg(all(feature = "nalgebra", feature = "ndarray"))]
-pub mod with_nalgebra_ndarray;
-
 #[cfg(all(feature = "ndarray", feature = "image"))]
 pub mod with_ndarray_image;
+
+#[cfg(all(feature = "ndarray", feature = "nalgebra"))]
+pub mod with_ndarray_nalgebra;
 
 /// OpenCV 相关模块
 #[cfg(feature = "opencv")]

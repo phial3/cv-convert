@@ -305,7 +305,7 @@ impl TryFromCv<&AVFrame> for image::GrayImage {
 
                 for y in 0..height {
                     for x in 0..width {
-                        let pos = (y as usize * stride + x as usize * 3) as usize;
+                        let pos = y as usize * stride + x as usize * 3;
                         let (r, g, b) = if is_bgr {
                             (data[pos + 2], data[pos + 1], data[pos])
                         } else {
