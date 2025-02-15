@@ -1,7 +1,8 @@
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use half::f16;
-use opencv::{core as cv_core, prelude::*};
+use opencv::core as cv_core;
+use opencv::prelude::*;
 
 pub use element_type::*;
 mod element_type {
