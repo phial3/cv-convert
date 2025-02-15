@@ -189,6 +189,13 @@ impl TryFromCv<&Mat> for AVFrame {
     }
 }
 
+impl TryFromCv<Mat> for AVFrame {
+    type Error = Error;
+    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
+        (&from).try_into_cv()
+    }
+}
+
 /// Convert FFmpeg AVFrame to OpenCV Mat
 /// 支持的格式转换：
 /// - AV_PIX_FMT_BGR24 -> CV_8UC3 (BGR)
@@ -259,6 +266,13 @@ impl TryFromCv<&AVFrame> for Mat {
             }
             None => Ok(dst_mat),
         }
+    }
+}
+
+impl TryFromCv<AVFrame> for Mat {
+    type Error = Error;
+    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
+        (&from).try_into_cv()
     }
 }
 
