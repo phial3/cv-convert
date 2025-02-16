@@ -18,6 +18,12 @@ pub const PIXEL_FORMAT_RGBA64: &str = "RGBA64";
 /// BGRA
 pub const PIXEL_FORMAT_BGRA: &str = "BGRA";
 pub const PIXEL_FORMAT_BGRA64: &str = "BGRA64";
+/// GRAY
+pub const PIXEL_FORMAT_GRAY8: &str = "GRAY8";
+pub const PIXEL_FORMAT_GRAY9: &str = "GRAY9";
+pub const PIXEL_FORMAT_GRAY10: &str = "GRAY10";
+pub const PIXEL_FORMAT_GRAY12: &str = "GRAY12";
+pub const PIXEL_FORMAT_GRAY16: &str = "GRAY16";
 /// YUV
 /// YUV410P: U/V 平面是 Y 平面的 1/4 宽度和 1/4 高度
 /// YUV411P: U/V 平面是 Y 平面的 1/4 宽度，相同高度
@@ -31,13 +37,6 @@ pub const PIXEL_FORMAT_YUV420P: &str = "YUV420P";
 pub const PIXEL_FORMAT_YUV422P: &str = "YUV422P";
 pub const PIXEL_FORMAT_YUV440P: &str = "YUV440P";
 pub const PIXEL_FORMAT_YUV444P: &str = "YUV444P";
-/// GRAY
-pub const PIXEL_FORMAT_GRAY8: &str = "GRAY8";
-pub const PIXEL_FORMAT_GRAY9: &str = "GRAY9";
-pub const PIXEL_FORMAT_GRAY10: &str = "GRAY10";
-pub const PIXEL_FORMAT_GRAY12: &str = "GRAY12";
-pub const PIXEL_FORMAT_GRAY16: &str = "GRAY16";
-
 /// 有效的格式列表
 pub const VALID_FORMATS: [&str; 23] = [
     PIXEL_FORMAT_RGB4,
@@ -97,8 +96,8 @@ pub fn convert_pixel_format<T, U>(
     dst_format: &str,
 ) -> Result<Array3<U>>
 where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
+    T: Copy + Clone + NumCast + Zero,
+    U: Copy + Clone + NumCast + Zero,
 {
     // 转换为小写并移除空白字符
     let src_fmt = src_format.trim().to_uppercase();
@@ -155,67 +154,107 @@ where
 
     // 执行转换
     match (src_fmt.as_str(), dst_fmt.as_str()) {
-        // RGB to BGR conversions
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8) => rgb8_to_bgr8(src),
-        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8) => bgr8_to_rgb8(src),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_BGR24) => rgb24_to_bgr24(src),
-        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_RGB24) => bgr24_to_rgb24(src),
-        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_BGR32) => rgb32_to_bgr32(src),
-        (PIXEL_FORMAT_BGR32, PIXEL_FORMAT_RGB32) => bgr32_to_rgb32(src),
+        // RGB to BGR
+        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_BGR4) |
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_BGR24) |
+        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_BGR32) |
+        // BGR to RGB
+        (PIXEL_FORMAT_BGR4, PIXEL_FORMAT_RGB4) |
+        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_RGB24) |
+        (PIXEL_FORMAT_BGR32, PIXEL_FORMAT_RGB32) => {
+            swap_rgb_bgr(src)
+        }
 
-        // RGB/BGR to RGBA/BGRA conversions
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_RGBA) => rgb8_to_rgba(src),
-        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_BGRA) => bgr8_to_bgra(src),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_RGBA) => rgb24_to_rgba(src),
-        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_BGRA) => bgr24_to_bgra(src),
+        // RGB to RGBA
+        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_RGBA) |
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_RGBA) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_RGBA) |
+        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_RGBA) |
+        // BGR to BGRA
+        (PIXEL_FORMAT_BGR4, PIXEL_FORMAT_BGRA) |
+        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_BGRA) |
+        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_BGRA) |
+        (PIXEL_FORMAT_BGR32, PIXEL_FORMAT_BGRA) => {
+            let alpha_value = U::from(255).unwrap();
+            add_alpha_channel(src, alpha_value)
+        }
 
-        // RGBA/BGRA to RGB/BGR conversions
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB8) => rgba_to_rgb8(src),
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR8) => bgra_to_bgr8(src),
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB24) => rgba_to_rgb24(src),
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR24) => bgra_to_bgr24(src),
+        // RGBA to RGB
+        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB4) |
+        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB24) |
+        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB32) |
+        // BGRA to BGR
+        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR4) |
+        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR8) |
+        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR24) |
+        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR32) => {
+            remove_alpha_channel(src)
+        }
 
-        // Gray to RGB/BGR conversions
-        (PIXEL_FORMAT_GRAY8, PIXEL_FORMAT_RGB8) => gray8_to_rgb8(src),
-        (PIXEL_FORMAT_GRAY8, PIXEL_FORMAT_BGR8) => gray8_to_bgr8(src),
-        (PIXEL_FORMAT_GRAY16, PIXEL_FORMAT_RGB8) => gray16_to_rgb8(src),
-        (PIXEL_FORMAT_GRAY16, PIXEL_FORMAT_BGR8) => gray16_to_bgr8(src),
+        // RGB to GRAY
+        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB4),
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB8),
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB24),
+        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB32),
 
         // GRAY to GRAY
         (PIXEL_FORMAT_GRAY8, PIXEL_FORMAT_GRAY16) => gray8_to_gray16(src),
         (PIXEL_FORMAT_GRAY16, PIXEL_FORMAT_GRAY8) => gray16_to_gray8(src),
 
-        // YUV to RGB8 conversions
-        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV410P),
-        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV411P),
-        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV420P),
-        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV422P),
-        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV440P),
-        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB8) => yuv_to_rgb(src, PIXEL_FORMAT_YUV444P),
+        // YUV to RGB8/RGB24
+        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV410P)
+        }
+        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV411P)
+        }
+        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV420P)
+        }
+        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV422P)
+        }
+        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV440P)
+        }
+        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB8) |
+        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB24) => {
+            yuv_to_rgb(src, PIXEL_FORMAT_YUV444P)
+        }
 
-        // YUV to RGB24 conversions
-        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV410P),
-        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV411P),
-        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV420P),
-        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV422P),
-        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV440P),
-        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB24) => yuv_to_rgb(src, PIXEL_FORMAT_YUV444P),
-
-        // RGB8 to YUV conversions
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV410P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV410P),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV411P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV411P),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV420P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV420P),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV422P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV422P),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV440P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV440P),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV444P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV444P),
-
-        // RGB24 to YUV conversions
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV410P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV410P),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV411P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV411P),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV420P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV420P),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV422P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV422P),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV440P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV440P),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV444P) => rgb_to_yuv(src, PIXEL_FORMAT_YUV444P),
+        // RGB8/RGB24 to YUV
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV410P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV410P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV410P)
+        }
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV411P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV411P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV411P)
+        }
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV420P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV420P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV420P)
+        }
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV422P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV422P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV422P)
+        }
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV440P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV440P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV440P)
+        }
+        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV444P) |
+        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV444P) => {
+            rgb_to_yuv(src, PIXEL_FORMAT_YUV444P)
+        }
 
         _ => Err(Error::msg(format!(
             "Unsupported conversion path: {} to {}",
@@ -224,11 +263,11 @@ where
     }
 }
 
-/// @author: phial3
-fn rgb8_to_bgr8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
+/// swap RGB <-> BGR channels
+fn swap_rgb_bgr<T, U>(src: &Array3<T>) -> Result<Array3<U>>
 where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
+    T: Copy + Clone + NumCast + Zero,
+    U: Copy + Clone + NumCast + Zero,
 {
     let (height, width, _channels) = src.dim();
     let mut dst = Array3::<U>::zeros((height, width, 3));
@@ -236,260 +275,93 @@ where
     for h in 0..height {
         for w in 0..width {
             // RGB -> BGR: swap R and B channels
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // B <- R
-            dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G <- G
-            dst[[h, w, 2]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap();
-            // R <- B
-        }
-    }
-    Ok(dst)
-}
-
-/// BGR8 to RGB8 conversion
-fn bgr8_to_rgb8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 3));
-
-    for h in 0..height {
-        for w in 0..width {
-            // BGR -> RGB: swap B and R channels
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // R <- B
-            dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G <- G
-            dst[[h, w, 2]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap();
-            // B <- R
-        }
-    }
-    Ok(dst)
-}
-
-/// RGB24 to BGR24 conversion
-fn rgb24_to_bgr24<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 RGB8 to BGR8 相同的实现，因为都是 3 通道，只是数据类型可能不同
-    rgb8_to_bgr8(src)
-}
-
-/// BGR24 to RGB24 conversion
-fn bgr24_to_rgb24<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 BGR8 to RGB8 相同的实现
-    bgr8_to_rgb8(src)
-}
-
-/// RGB32 to BGR32 conversion
-fn rgb32_to_bgr32<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 RGB8/24 to BGR8/24 相同的实现
-    rgb8_to_bgr8(src)
-}
-
-/// BGR32 to RGB32 conversion
-fn bgr32_to_rgb32<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 BGR8/24 to RGB8/24 相同的实现
-    bgr8_to_rgb8(src)
-}
-
-/// RGB8 to RGBA conversion
-fn rgb8_to_rgba<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 4));
-    let alpha: U = NumCast::from(255).unwrap();
-
-    for h in 0..height {
-        for w in 0..width {
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // R
+            dst[[h, w, 0]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // B / R
             dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G
-            dst[[h, w, 2]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // B
-            dst[[h, w, 3]] = alpha.clone(); // A (255)
+            dst[[h, w, 2]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap();
+            // R / B
         }
     }
+
     Ok(dst)
 }
 
-/// BGR8 to BGRA conversion
-fn bgr8_to_bgra<T, U>(src: &Array3<T>) -> Result<Array3<U>>
+/// Helper function to handle alpha channel addition
+fn add_alpha_channel<T, U>(src: &Array3<T>, alpha_value: U) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
 {
     let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 4));
-    let alpha: U = NumCast::from(255).unwrap();
+    let mut dst = Array3::zeros((height, width, 4));
+    let alpha: U = NumCast::from(alpha_value).unwrap();
 
     for h in 0..height {
         for w in 0..width {
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // B
+            // Copy
+            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // B / R
             dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G
-            dst[[h, w, 2]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // R
-            dst[[h, w, 3]] = alpha.clone(); // A (255)
+            dst[[h, w, 2]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap(); // R / B
+                                                                                       // Add alpha channel
+            dst[[h, w, 3]] = alpha.clone();
         }
     }
     Ok(dst)
 }
 
-/// RGB24 to RGBA conversion
-fn rgb24_to_rgba<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 RGB8 to RGBA 相同的实现
-    rgb8_to_rgba(src)
-}
-
-/// BGR24 to BGRA conversion
-fn bgr24_to_bgra<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 BGR8 to BGRA 相同的实现
-    bgr8_to_bgra(src)
-}
-
-/// RGBA to RGB8 conversion
-fn rgba_to_rgb8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
+/// Helper function to remove alpha channel
+fn remove_alpha_channel<T, U>(src: &Array3<T>) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
 {
     let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 3));
+    let mut dst = Array3::zeros((height, width, 3));
 
     for h in 0..height {
         for w in 0..width {
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // R
+            // Copy only RGB channels
+            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // B / R
             dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G
             dst[[h, w, 2]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap();
-            // B
+            // R / B
         }
     }
+
     Ok(dst)
 }
 
-/// BGRA to BGR8 conversion
-fn bgra_to_bgr8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
+/// RGB to GRAY
+fn rgb_to_gray8<T, U>(src: &Array3<T>, src_format: &str) -> Result<Array3<U>>
 where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
+    T: Copy + Clone + NumCast + Zero,
+    U: Copy + Clone + NumCast + Zero,
 {
     let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 3));
+    let mut dst = Array3::zeros((height, width, 1));
+
+    // 根据输入格式确定归一化因子
+    let normalize_factor: f64 = match src_format {
+        // 对于 RGB4，每个颜色通道使用 4 位表示，值范围是 0-15 (2^4 - 1 = 15)
+        PIXEL_FORMAT_RGB4 => 15.0, // 4-bit 最大值
+        // RGB8/RGB24/RGB32，每个颜色通道使用 8 位表示，值范围是 0-255 (2^8 - 1 = 255)
+        _ => 255.0, // 8-bit 最大值
+    };
 
     for h in 0..height {
         for w in 0..width {
-            dst[[h, w, 0]] = NumCast::from(src[[h, w, 0]].to_f64().unwrap()).unwrap(); // B
-            dst[[h, w, 1]] = NumCast::from(src[[h, w, 1]].to_f64().unwrap()).unwrap(); // G
-            dst[[h, w, 2]] = NumCast::from(src[[h, w, 2]].to_f64().unwrap()).unwrap();
-            // R
+            let r = src[[h, w, 0]].to_f64().unwrap() / normalize_factor; // R
+            let g = src[[h, w, 1]].to_f64().unwrap() / normalize_factor; // G
+            let b = src[[h, w, 2]].to_f64().unwrap() / normalize_factor; // B
+
+            // RGB to Grayscale weights (BT.709)
+            // 计算灰度值并缩放回 0-255 范围
+            let gray = (r * 0.2126 + g * 0.7152 + b * 0.0722) * 255.0;
+
+            dst[[h, w, 0]] = NumCast::from(gray.round().clamp(0.0, 255.0)).unwrap();
         }
     }
+
     Ok(dst)
-}
-
-/// RGBA to RGB24 conversion
-fn rgba_to_rgb24<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 RGBA to RGB8 相同的实现
-    rgba_to_rgb8(src)
-}
-
-/// BGRA to BGR24 conversion
-fn bgra_to_bgr24<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 BGRA to BGR8 相同的实现
-    bgra_to_bgr8(src)
-}
-
-/// GRAY8 to RGB8 conversion
-fn gray8_to_rgb8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 3));
-
-    for h in 0..height {
-        for w in 0..width {
-            let val = src[[h, w, 0]].to_f64().unwrap();
-            let rgb: U = NumCast::from(val).unwrap();
-            dst[[h, w, 0]] = rgb.clone(); // R
-            dst[[h, w, 1]] = rgb.clone(); // G
-            dst[[h, w, 2]] = rgb; // B
-        }
-    }
-    Ok(dst)
-}
-
-/// GRAY8 to BGR8 conversion
-fn gray8_to_bgr8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 灰度图转 BGR 与转 RGB 实现相同，因为所有通道值相等
-    gray8_to_rgb8(src)
-}
-
-/// GRAY16 to RGB8 conversion
-fn gray16_to_rgb8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 3));
-
-    for h in 0..height {
-        for w in 0..width {
-            // 将 16 位值转换为 8 位值
-            let val = src[[h, w, 0]].to_f64().unwrap();
-            let scaled = (val / 256.0).round(); // 16位到8位的转换
-            let rgb: U = NumCast::from(scaled).unwrap();
-            dst[[h, w, 0]] = rgb.clone(); // R
-            dst[[h, w, 1]] = rgb.clone(); // G
-            dst[[h, w, 2]] = rgb; // B
-        }
-    }
-    Ok(dst)
-}
-
-/// GRAY16 to BGR8 conversion
-fn gray16_to_bgr8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    // 与 GRAY16 to RGB8 相同的实现
-    gray16_to_rgb8(src)
 }
 
 /// GRAY8 to GRAY16 conversion
@@ -508,6 +380,7 @@ where
             dst[[h, w, 0]] = NumCast::from(scaled).unwrap();
         }
     }
+
     Ok(dst)
 }
 
@@ -527,6 +400,7 @@ where
             dst[[h, w, 0]] = NumCast::from(scaled).unwrap();
         }
     }
+
     Ok(dst)
 }
 
@@ -955,5 +829,121 @@ mod tests {
             "Performance test (1920x1080) completed in: {}ms",
             start.elapsed().as_millis()
         );
+    }
+
+    // 辅助函数：创建指定大小的测试图像
+    fn create_image<T>(width: usize, height: usize, r: T, g: T, b: T) -> Array3<T>
+    where
+        T: Copy + Clone + Zero,
+    {
+        let mut img = Array3::zeros((height, width, 3));
+        for i in 0..height {
+            for j in 0..width {
+                img[[i, j, 0]] = r;
+                img[[i, j, 1]] = g;
+                img[[i, j, 2]] = b;
+            }
+        }
+        img
+    }
+
+    #[test]
+    fn test_rgb4_to_gray8_white() -> Result<()> {
+        // RGB4 最大值为 15
+        let rgb = create_image(2, 2, 15u8, 15u8, 15u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8)?;
+
+        // 全白图像，转换后应该是 255
+        assert_eq!(gray[[0, 0, 0]], 255);
+        assert_eq!(gray[[1, 1, 0]], 255);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb4_to_gray8_black() -> Result<()> {
+        // RGB4 最小值为 0
+        let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8)?;
+
+        // 全黑图像，转换后应该是 0
+        assert_eq!(gray[[0, 0, 0]], 0);
+        assert_eq!(gray[[1, 1, 0]], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb8_to_gray8_white() -> Result<()> {
+        // RGB8 最大值为 255
+        let rgb = create_image(2, 2, 255u8, 255u8, 255u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // 全白图像，转换后应该是 255
+        assert_eq!(gray[[0, 0, 0]], 255);
+        assert_eq!(gray[[1, 1, 0]], 255);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb8_to_gray8_black() -> Result<()> {
+        // RGB8 最小值为 0
+        let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // 全黑图像，转换后应该是 0
+        assert_eq!(gray[[0, 0, 0]], 0);
+        assert_eq!(gray[[1, 1, 0]], 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb8_to_gray8_red() -> Result<()> {
+        // 纯红色图像
+        let rgb = create_image(2, 2, 255u8, 0u8, 0u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // R 权重为 0.2126，因此灰度值应该约为 54
+        assert_eq!(gray[[0, 0, 0]], 54);
+        assert_eq!(gray[[1, 1, 0]], 54);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb8_to_gray8_green() -> Result<()> {
+        // 纯绿色图像
+        let rgb = create_image(2, 2, 0u8, 255u8, 0u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // G 权重为 0.7152，因此灰度值应该约为 182
+        assert_eq!(gray[[0, 0, 0]], 182);
+        assert_eq!(gray[[1, 1, 0]], 182);
+        Ok(())
+    }
+
+    #[test]
+    fn test_rgb8_to_gray8_blue() -> Result<()> {
+        // 纯蓝色图像
+        let rgb = create_image(2, 2, 0u8, 0u8, 255u8);
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // B 权重为 0.0722，因此灰度值应该约为 18
+        assert_eq!(gray[[0, 0, 0]], 18);
+        assert_eq!(gray[[1, 1, 0]], 18);
+        Ok(())
+    }
+
+    #[test]
+    fn test_mixed_colors() -> Result<()> {
+        let mut rgb = Array3::<u8>::zeros((2, 2, 3));
+        // 设置一个混合颜色：R=255, G=128, B=64
+        rgb[[0, 0, 0]] = 255; // R
+        rgb[[0, 0, 1]] = 128; // G
+        rgb[[0, 0, 2]] = 64; // B
+
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+
+        // 计算期望的灰度值：
+        // 255 * 0.2126 + 128 * 0.7152 + 64 * 0.0722 ≈ 150
+        assert_eq!(gray[[0, 0, 0]], 150);
+        Ok(())
     }
 }
