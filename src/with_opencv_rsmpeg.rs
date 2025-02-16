@@ -1,7 +1,6 @@
 use crate::with_rsmpeg;
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
-use opencv::core::Mat;
 use opencv::prelude::*;
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
