@@ -2,67 +2,316 @@ use anyhow::{Error, Result};
 use ndarray::Array3;
 use num_traits::{NumCast, Zero};
 
-/// RGB
-pub const PIXEL_FORMAT_RGB4: &str = "RGB4";
-pub const PIXEL_FORMAT_RGB8: &str = "RGB8";
-pub const PIXEL_FORMAT_RGB24: &str = "RGB24";
-pub const PIXEL_FORMAT_RGB32: &str = "RGB32";
-/// BGR
-pub const PIXEL_FORMAT_BGR4: &str = "BGR4";
-pub const PIXEL_FORMAT_BGR8: &str = "BGR8";
-pub const PIXEL_FORMAT_BGR24: &str = "BGR24";
-pub const PIXEL_FORMAT_BGR32: &str = "BGR32";
-/// RGBA
-pub const PIXEL_FORMAT_RGBA: &str = "RGBA";
-pub const PIXEL_FORMAT_RGBA64: &str = "RGBA64";
-/// BGRA
-pub const PIXEL_FORMAT_BGRA: &str = "BGRA";
-pub const PIXEL_FORMAT_BGRA64: &str = "BGRA64";
-/// GRAY
-pub const PIXEL_FORMAT_GRAY8: &str = "GRAY8";
-pub const PIXEL_FORMAT_GRAY9: &str = "GRAY9";
-pub const PIXEL_FORMAT_GRAY10: &str = "GRAY10";
-pub const PIXEL_FORMAT_GRAY12: &str = "GRAY12";
-pub const PIXEL_FORMAT_GRAY16: &str = "GRAY16";
-/// YUV
-/// YUV410P: U/V 平面是 Y 平面的 1/4 宽度和 1/4 高度
-/// YUV411P: U/V 平面是 Y 平面的 1/4 宽度，相同高度
-/// YUV420P: U/V 平面是 Y 平面的 1/2 宽度和 1/2 高度
-/// YUV422P: U/V 平面是 Y 平面的 1/2 宽度，相同高度
-/// YUV440P: U/V 平面是 Y 平面的相同宽度，1/2 高度
-/// YUV444P: U/V 平面与 Y 平面相同大小
-pub const PIXEL_FORMAT_YUV410P: &str = "YUV410P";
-pub const PIXEL_FORMAT_YUV411P: &str = "YUV411P";
-pub const PIXEL_FORMAT_YUV420P: &str = "YUV420P";
-pub const PIXEL_FORMAT_YUV422P: &str = "YUV422P";
-pub const PIXEL_FORMAT_YUV440P: &str = "YUV440P";
-pub const PIXEL_FORMAT_YUV444P: &str = "YUV444P";
-/// 有效的格式列表
-pub const VALID_FORMATS: [&str; 23] = [
-    PIXEL_FORMAT_RGB4,
-    PIXEL_FORMAT_RGB8,
-    PIXEL_FORMAT_RGB24,
-    PIXEL_FORMAT_RGB32,
-    PIXEL_FORMAT_BGR4,
-    PIXEL_FORMAT_BGR8,
-    PIXEL_FORMAT_BGR24,
-    PIXEL_FORMAT_BGR32,
-    PIXEL_FORMAT_RGBA,
-    PIXEL_FORMAT_RGBA64,
-    PIXEL_FORMAT_BGRA,
-    PIXEL_FORMAT_BGRA64,
-    PIXEL_FORMAT_GRAY8,
-    PIXEL_FORMAT_GRAY9,
-    PIXEL_FORMAT_GRAY10,
-    PIXEL_FORMAT_GRAY12,
-    PIXEL_FORMAT_GRAY16,
-    PIXEL_FORMAT_YUV410P,
-    PIXEL_FORMAT_YUV411P,
-    PIXEL_FORMAT_YUV420P,
-    PIXEL_FORMAT_YUV422P,
-    PIXEL_FORMAT_YUV440P,
-    PIXEL_FORMAT_YUV444P,
-];
+pub use pix_fmt::*;
+mod pix_fmt {
+    use super::*;
+    use rsmpeg::ffi;
+    use std::fmt::Debug;
+
+    pub trait PixelType: Copy + Clone + NumCast + Zero + 'static {}
+    impl PixelType for u8 {}
+    impl PixelType for u16 {}
+    impl PixelType for i16 {}
+    impl PixelType for f32 {}
+    impl PixelType for f64 {}
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum PixelFormat {
+        // RGB 格式
+        RGB4,
+        RGB8,
+        RGB24,
+        RGB32,
+        // BGR 格式
+        BGR4,
+        BGR8,
+        BGR24,
+        BGR32,
+        // RGBA 格式
+        RGBA,
+        // BGRA 格式
+        BGRA,
+        // Gray 格式
+        GRAY8,
+        // YUV 格式
+        YUV410P,
+        YUV411P,
+        YUV420P,
+        YUV422P,
+        YUV440P,
+        YUV444P,
+        YUYV422,
+    }
+
+    pub trait AVFramePixel: Sized + Clone + Debug {
+        /// 获取像素格式
+        fn pix_fmt(&self) -> i32;
+        /// 获取通道数
+        fn channels(&self) -> usize;
+        /// 获取每个通道的位深
+        fn bits_per_channel(&self) -> u8;
+        /// 获取像素格式对应的字节数
+        fn bits_per_pixel(&self) -> u32;
+        /// Get UV plane dimensions based on format
+        fn yuv_params(&self) -> Option<(YUVParams, UVDimensions)>;
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct YUVParams {
+        pub subsample_x: u32, // 水平子采样指数
+        pub subsample_y: u32, // 垂直子采样指数
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct UVDimensions {
+        pub width: usize,  // UV平面实际宽度
+        pub height: usize, // UV平面实际高度
+    }
+
+    impl AVFramePixel for PixelFormat {
+        fn pix_fmt(&self) -> i32 {
+            match self {
+                Self::RGB4 => 21,
+                Self::RGB8 => 20,
+                Self::RGB24 => 2,
+                Self::RGB32 => 28, //
+                Self::BGRA => 28,  //
+                Self::BGR4 => 18,
+                Self::BGR8 => 17,
+                Self::BGR24 => 3,
+                Self::BGR32 => 26, //
+                Self::RGBA => 26,  //
+                Self::GRAY8 => 8,
+                Self::YUV410P => 6,
+                Self::YUV411P => 7,
+                Self::YUV420P => 0,
+                Self::YUV422P => 4,
+                Self::YUV440P => 31,
+                Self::YUV444P => 5,
+                Self::YUYV422 => 1,
+            }
+        }
+
+        fn channels(&self) -> usize {
+            match self {
+                Self::GRAY8 => 1,
+                Self::RGB4 | Self::RGB8 | Self::RGB24 | Self::BGR4 | Self::BGR8 | Self::BGR24 => 3,
+                Self::RGB32 | Self::BGR32 | Self::RGBA | Self::BGRA => 4,
+                Self::YUV410P
+                | Self::YUV411P
+                | Self::YUV420P
+                | Self::YUV422P
+                | Self::YUV440P
+                | Self::YUV444P
+                | Self::YUYV422 => 3,
+            }
+        }
+
+        fn bits_per_channel(&self) -> u8 {
+            match self {
+                // RGB4/BGR4 每个通道实际是1.33位(4位总共表示RGB)
+                Self::RGB4 | Self::BGR4 => 1,
+                // RGB8/BGR8 每个通道实际是2.67位(8位总共表示RGB)
+                Self::RGB8 | Self::BGR8 => 2, // 修改为2位/通道
+                Self::RGB24 | Self::RGB32 | Self::BGR24 | Self::BGR32 | Self::RGBA | Self::BGRA => {
+                    8
+                }
+                Self::GRAY8 => 8,
+                Self::YUV410P
+                | Self::YUV411P
+                | Self::YUV420P
+                | Self::YUV422P
+                | Self::YUV440P
+                | Self::YUV444P
+                | Self::YUYV422 => 8,
+            }
+        }
+
+        fn bits_per_pixel(&self) -> u32 {
+            match self {
+                // RGB/BGR 格式
+                Self::RGB4 | Self::BGR4 => 4,
+                Self::RGB8 | Self::BGR8 => 8,
+                Self::RGB24 | Self::BGR24 => 24,
+                Self::RGB32 | Self::BGR32 => 32,
+
+                // RGBA/BGRA 格式
+                Self::RGBA | Self::BGRA => 32,
+
+                // Gray 格式
+                Self::GRAY8 => 8,
+
+                // YUV 格式
+                Self::YUV410P => {
+                    // Y平面 8位 + U/V平面各2位 (1/16大小)
+                    // (4 + 1 + 1) * 1.66
+                    10
+                }
+                Self::YUV411P => {
+                    // Y平面 8位 + U/V平面各2位 (1/4宽度)
+                    // (4 + 1 + 1) * 2
+                    12
+                }
+                Self::YUV420P => {
+                    // Y平面 8位 + U/V平面各2位 (1/4大小)
+                    // (4 + 1 + 1) * 2
+                    12
+                }
+                Self::YUV422P => {
+                    // Y平面 8位 + U/V平面各4位 (1/2宽度)
+                    // (4 + 2 + 2) * 2
+                    16
+                }
+                Self::YUV440P => {
+                    // Y平面 8位 + U/V平面各4位 (1/2高度)
+                    // (4 + 2 + 2) * 2
+                    16
+                }
+                Self::YUV444P => {
+                    // Y、U、V平面各8位
+                    // 8 + 8 + 8
+                    24
+                }
+                Self::YUYV422 => {
+                    // 打包格式：每两个像素共用一组UV分量
+                    // 每两个像素: Y1 U Y2 V = 32位
+                    // 16 bits per pixel in packed format
+                    16
+                }
+            }
+        }
+
+        fn yuv_params(&self) -> Option<(YUVParams, UVDimensions)> {
+            match self {
+                Self::YUV410P => {
+                    // 4:1:0 - 色度分量水平和垂直都缩减为 1/4
+                    Some((
+                        YUVParams {
+                            subsample_x: 2, // 水平缩减 4 倍 (2^2)
+                            subsample_y: 2, // 垂直缩减 4 倍 (2^2)
+                        },
+                        UVDimensions {
+                            width: 4,
+                            height: 4,
+                        },
+                    ))
+                }
+                Self::YUV411P => {
+                    // 4:1:1 - 色度分量水平缩减为 1/4，垂直不缩减
+                    Some((
+                        YUVParams {
+                            subsample_x: 2, // 水平缩减 4 倍 (2^2)
+                            subsample_y: 0, // 垂直不缩减 (2^0)
+                        },
+                        UVDimensions {
+                            width: 4,
+                            height: 1,
+                        },
+                    ))
+                }
+                Self::YUV420P => {
+                    // 4:2:0 - 色度分量水平和垂直都缩减为 1/2
+                    Some((
+                        YUVParams {
+                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
+                            subsample_y: 1, // 垂直缩减 2 倍 (2^1)
+                        },
+                        UVDimensions {
+                            width: 2,
+                            height: 2,
+                        },
+                    ))
+                }
+                Self::YUV422P => {
+                    // 4:2:2 - 色度分量水平缩减为 1/2，垂直不缩减
+                    Some((
+                        YUVParams {
+                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
+                            subsample_y: 0, // 垂直不缩减 (2^0)
+                        },
+                        UVDimensions {
+                            width: 2,
+                            height: 1,
+                        },
+                    ))
+                }
+                Self::YUV440P => {
+                    // 4:4:0 - 色度分量水平不缩减，垂直缩减为 1/2
+                    Some((
+                        YUVParams {
+                            subsample_x: 0, // 水平不缩减 (2^0)
+                            subsample_y: 1, // 垂直缩减 2 倍 (2^1)
+                        },
+                        UVDimensions {
+                            width: 1,
+                            height: 2,
+                        },
+                    ))
+                }
+                Self::YUV444P => {
+                    // 4:4:4 - 色度分量水平和垂直都不缩减
+                    Some((
+                        YUVParams {
+                            subsample_x: 0, // 水平不缩减 (2^0)
+                            subsample_y: 0, // 垂直不缩减 (2^0)
+                        },
+                        UVDimensions {
+                            width: 1,
+                            height: 1,
+                        },
+                    ))
+                }
+                Self::YUYV422 => {
+                    // 4:2:2 - 色度分量水平缩减为 1/2，垂直不缩减
+                    Some((
+                        YUVParams {
+                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
+                            subsample_y: 0, // 垂直不缩减 (2^0)
+                        },
+                        UVDimensions {
+                            width: 2,
+                            height: 1,
+                        },
+                    ))
+                }
+                _ => None,
+            }
+        }
+    }
+}
+
+pub use array_ext::*;
+mod array_ext {
+    use super::{AVFramePixel, PixelFormat, PixelType};
+    use ndarray::Array3;
+
+    // 为Array3添加像素格式标记的扩展trait
+    pub trait ArrayExt<T: PixelType> {
+        fn with_format<F: AVFramePixel>(self, format: F) -> ArrayWithFormat<T, F>;
+    }
+
+    // 为所有满足 PixelType 的类型 T 实现 ArrayExt
+    impl<T: PixelType> ArrayExt<T> for Array3<T> {
+        fn with_format<F: AVFramePixel>(self, format: F) -> ArrayWithFormat<T, F> {
+            ArrayWithFormat {
+                array: self,
+                format,
+            }
+        }
+    }
+
+    // 包装Array3，携带像素格式信息
+    pub struct ArrayWithFormat<T: PixelType, F: AVFramePixel> {
+        pub array: Array3<T>,
+        pub format: F,
+    }
+
+    impl<T: PixelType, F: AVFramePixel> ArrayWithFormat<T, F> {
+        pub fn into_inner(self) -> Array3<T> {
+            self.array
+        }
+    }
+}
 
 /// BT.709-6: <https://www.itu.int/rec/R-REC-BT.709>
 /// BT.601-7: <https://www.itu.int/rec/R-REC-BT.601>
@@ -257,173 +506,134 @@ pub fn xyz_to_rgb(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
 /// Convert between different pixel formats
 pub fn convert_pixel_format<T, U>(
     src: &Array3<T>,
-    src_format: &str,
-    dst_format: &str,
+    src_fmt: PixelFormat,
+    dst_fmt: PixelFormat,
 ) -> Result<Array3<U>>
 where
     T: Copy + Clone + NumCast + Zero,
     U: Copy + Clone + NumCast + Zero,
 {
-    // 转换为小写并移除空白字符
-    let src_fmt = src_format.trim().to_uppercase();
-    let dst_fmt = dst_format.trim().to_uppercase();
-
-    if !VALID_FORMATS.contains(&src_fmt.as_str()) {
-        return Err(Error::msg(format!(
-            "Unsupported source format: {}",
-            src_fmt
-        )));
-    }
-    if !VALID_FORMATS.contains(&dst_fmt.as_str()) {
-        return Err(Error::msg(format!(
-            "Unsupported destination format: {}",
-            dst_fmt
-        )));
-    }
-
-    // 检查通道数是否匹配
-    let expected_channels = match src_fmt.as_str() {
-        // GRAY
-        PIXEL_FORMAT_GRAY8 | PIXEL_FORMAT_GRAY9 | PIXEL_FORMAT_GRAY10 | PIXEL_FORMAT_GRAY12
-        | PIXEL_FORMAT_GRAY16 => 1,
-        // RGB/BGR
-        PIXEL_FORMAT_RGB4 | PIXEL_FORMAT_RGB8 | PIXEL_FORMAT_RGB24 | PIXEL_FORMAT_RGB32
-        | PIXEL_FORMAT_BGR4 | PIXEL_FORMAT_BGR8 | PIXEL_FORMAT_BGR24 | PIXEL_FORMAT_BGR32 => 3,
-        // YUV
-        PIXEL_FORMAT_YUV410P | PIXEL_FORMAT_YUV411P | PIXEL_FORMAT_YUV420P
-        | PIXEL_FORMAT_YUV422P | PIXEL_FORMAT_YUV440P | PIXEL_FORMAT_YUV444P => 3,
-        // RGBA/BGRA
-        PIXEL_FORMAT_RGBA | PIXEL_FORMAT_RGBA64 | PIXEL_FORMAT_BGRA | PIXEL_FORMAT_BGRA64 => 4,
-        _ => {
-            return Err(Error::msg(format!(
-                "Unsupported source format: {}",
-                src_fmt
-            )))
-        }
-    };
-
     let (_height, _width, channels) = src.dim();
-    if channels != expected_channels {
+    if channels != src_fmt.channels() {
         return Err(Error::msg(format!(
-            "Source format {} expects {} channels, but got {}",
-            src_fmt, expected_channels, channels
+            "Source format {:?} expects {} channels, but got {}",
+            src_fmt,
+            src_fmt.channels(),
+            channels
         )));
     }
 
     // 如果源格式和目标格式相同，直接复制数据
-    if src_fmt == dst_fmt {
+    if src_fmt.pix_fmt() == dst_fmt.pix_fmt() {
         return Ok(Array3::from_shape_fn(src.raw_dim(), |idx| {
             NumCast::from(src[idx].clone().to_f64().unwrap()).unwrap()
         }));
     }
 
     // 执行转换
-    match (src_fmt.as_str(), dst_fmt.as_str()) {
+    use PixelFormat::*;
+    match (src_fmt, dst_fmt) {
         // RGB to BGR
-        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_BGR4) |
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_BGR24) |
-        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_BGR32) |
+        (RGB4, BGR4) |
+        (RGB8, BGR8) |
+        (RGB24, BGR24) |
+        (RGB32, BGR32) |
         // BGR to RGB
-        (PIXEL_FORMAT_BGR4, PIXEL_FORMAT_RGB4) |
-        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_RGB24) |
-        (PIXEL_FORMAT_BGR32, PIXEL_FORMAT_RGB32) => {
+        (BGR4, RGB4) |
+        (BGR8, RGB8) |
+        (BGR24, RGB24) |
+        (BGR32, RGB32) => {
             swap_rgb_bgr(src)
         }
 
         // RGB to RGBA
-        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_RGBA) |
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_RGBA) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_RGBA) |
-        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_RGBA) |
+        (RGB4, RGBA) |
+        (RGB8, RGBA) |
+        (RGB24, RGBA) |
+        (RGB32, RGBA) |
         // BGR to BGRA
-        (PIXEL_FORMAT_BGR4, PIXEL_FORMAT_BGRA) |
-        (PIXEL_FORMAT_BGR8, PIXEL_FORMAT_BGRA) |
-        (PIXEL_FORMAT_BGR24, PIXEL_FORMAT_BGRA) |
-        (PIXEL_FORMAT_BGR32, PIXEL_FORMAT_BGRA) => {
+        (BGR4, BGRA) |
+        (BGR8, BGRA) |
+        (BGR24, BGRA) |
+        (BGR32, BGRA) => {
             let alpha_value = U::from(255).unwrap();
             add_alpha_channel(src, alpha_value)
         }
 
         // RGBA to RGB
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB4) |
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB24) |
-        (PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB32) |
+        (RGBA, RGB4) |
+        (RGBA, RGB8) |
+        (RGBA, RGB24) |
+        (RGBA, RGB32) |
         // BGRA to BGR
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR4) |
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR8) |
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR24) |
-        (PIXEL_FORMAT_BGRA, PIXEL_FORMAT_BGR32) => {
+        (BGRA, BGR4) |
+        (BGRA, BGR8) |
+        (BGRA, BGR24) |
+        (BGRA, BGR32) => {
             remove_alpha_channel(src)
         }
 
         // RGB to GRAY
-        (PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB4),
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB8),
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB24),
-        (PIXEL_FORMAT_RGB32, PIXEL_FORMAT_GRAY8) => rgb_to_gray8(src, PIXEL_FORMAT_RGB32),
-
-        // GRAY to GRAY
-        (PIXEL_FORMAT_GRAY8, PIXEL_FORMAT_GRAY16) => gray8_to_gray16(src),
-        (PIXEL_FORMAT_GRAY16, PIXEL_FORMAT_GRAY8) => gray16_to_gray8(src),
+        (RGB4, GRAY8) => rgb_to_gray8(src, RGB4),
+        (RGB8, GRAY8) => rgb_to_gray8(src, RGB8),
+        (RGB24, GRAY8) => rgb_to_gray8(src, RGB24),
+        (RGB32, GRAY8) => rgb_to_gray8(src, RGB32),
 
         // YUV to RGB8/RGB24
-        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV410P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV410P)
+        (YUV410P, RGB8) |
+        (YUV410P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV410P)
         }
-        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV411P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV411P)
+        (YUV411P, RGB8) |
+        (YUV411P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV411P)
         }
-        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV420P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV420P)
+        (YUV420P, RGB8) |
+        (YUV420P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV420P)
         }
-        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV422P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV422P)
+        (YUV422P, RGB8) |
+        (YUV422P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV422P)
         }
-        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV440P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV440P)
+        (YUV440P, RGB8) |
+        (YUV440P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV440P)
         }
-        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB8) |
-        (PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB24) => {
-            ndarray_yuv_to_rgb(src, PIXEL_FORMAT_YUV444P)
+        (YUV444P, RGB8) |
+        (YUV444P, RGB24) => {
+            ndarray_yuv_to_rgb(src, YUV444P)
         }
 
         // RGB8/RGB24 to YUV
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV410P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV410P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV410P)
+        (RGB8, YUV410P) |
+        (RGB24, YUV410P) => {
+            ndarray_rgb_to_yuv(src, YUV410P)
         }
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV411P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV411P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV411P)
+        (RGB8, YUV411P) |
+        (RGB24, YUV411P) => {
+            ndarray_rgb_to_yuv(src, YUV411P)
         }
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV420P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV420P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV420P)
+        (RGB8, YUV420P) |
+        (RGB24, YUV420P) => {
+            ndarray_rgb_to_yuv(src, YUV420P)
         }
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV422P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV422P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV422P)
+        (RGB8, YUV422P) |
+        (RGB24, YUV422P) => {
+            ndarray_rgb_to_yuv(src, YUV422P)
         }
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV440P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV440P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV440P)
+        (RGB8, YUV440P) |
+        (RGB24, YUV440P) => {
+            ndarray_rgb_to_yuv(src, YUV440P)
         }
-        (PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV444P) |
-        (PIXEL_FORMAT_RGB24, PIXEL_FORMAT_YUV444P) => {
-            ndarray_rgb_to_yuv(src, PIXEL_FORMAT_YUV444P)
+        (RGB8, YUV444P) |
+        (RGB24, YUV444P) => {
+            ndarray_rgb_to_yuv(src, YUV444P)
         }
 
         _ => Err(Error::msg(format!(
-            "Unsupported conversion path: {} to {}",
-            src_format, dst_format
+            "Unsupported conversion path: {:?} to {:?}",
+            src_fmt, dst_fmt
         ))),
     }
 }
@@ -496,7 +706,7 @@ where
 }
 
 /// RGB to GRAY
-fn rgb_to_gray8<T, U>(src: &Array3<T>, src_format: &str) -> Result<Array3<U>>
+fn rgb_to_gray8<T, U>(src: &Array3<T>, src_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Copy + Clone + NumCast + Zero,
     U: Copy + Clone + NumCast + Zero,
@@ -507,7 +717,7 @@ where
     // 根据输入格式确定归一化因子
     let normalize_factor: f64 = match src_format {
         // 对于 RGB4，每个颜色通道使用 4 位表示，值范围是 0-15 (2^4 - 1 = 15)
-        PIXEL_FORMAT_RGB4 => 15.0, // 4-bit 最大值
+        PixelFormat::RGB4 => 15.0, // 4-bit 最大值
         // RGB8/RGB24/RGB32，每个颜色通道使用 8 位表示，值范围是 0-255 (2^8 - 1 = 255)
         _ => 255.0, // 8-bit 最大值
     };
@@ -529,48 +739,8 @@ where
     Ok(dst)
 }
 
-/// GRAY8 to GRAY16 conversion
-fn gray8_to_gray16<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 1));
-
-    for h in 0..height {
-        for w in 0..width {
-            let val = src[[h, w, 0]].to_f64().unwrap();
-            let scaled = val * 256.0; // 8位到16位的转换
-            dst[[h, w, 0]] = NumCast::from(scaled).unwrap();
-        }
-    }
-
-    Ok(dst)
-}
-
-/// GRAY16 to GRAY8 conversion
-fn gray16_to_gray8<T, U>(src: &Array3<T>) -> Result<Array3<U>>
-where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
-{
-    let (height, width, _channels) = src.dim();
-    let mut dst = Array3::<U>::zeros((height, width, 1));
-
-    for h in 0..height {
-        for w in 0..width {
-            let val = src[[h, w, 0]].to_f64().unwrap();
-            let scaled = (val / 256.0).round(); // 16位到8位的转换
-            dst[[h, w, 0]] = NumCast::from(scaled).unwrap();
-        }
-    }
-
-    Ok(dst)
-}
-
 /// Convert YUV planar formats to RGB (supports both RGB8 and RGB24)
-fn ndarray_yuv_to_rgb<T, U>(src: &Array3<T>, src_format: &str) -> Result<Array3<U>>
+fn ndarray_yuv_to_rgb<T, U>(src: &Array3<T>, src_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
@@ -578,21 +748,16 @@ where
     let (height, width, _channels) = src.dim();
     let mut dst = Array3::<U>::zeros((height, width, 3));
 
-    // Get UV sampling ratios for different YUV formats
-    let (uv_width_ratio, uv_height_ratio) = match src_format {
-        PIXEL_FORMAT_YUV410P => (4, 4),
-        PIXEL_FORMAT_YUV411P => (4, 1),
-        PIXEL_FORMAT_YUV420P => (2, 2),
-        PIXEL_FORMAT_YUV422P => (2, 1),
-        PIXEL_FORMAT_YUV440P => (1, 2),
-        PIXEL_FORMAT_YUV444P => (1, 1),
-        _ => {
-            return Err(Error::msg(format!(
-                "Unsupported YUV format: {}",
-                src_format
-            )))
-        }
-    };
+    // Get UV dimensions
+    let yuv_params = src_format.yuv_params();
+    if yuv_params.is_none() {
+        return Err(Error::msg(format!(
+            "Unsupported YUV format: {:?}",
+            src_format
+        )));
+    }
+    let (_params, dimensions) = yuv_params.unwrap();
+    let (uv_width_ratio, uv_height_ratio) = (dimensions.width, dimensions.height);
 
     for y in 0..height {
         for x in 0..width {
@@ -619,7 +784,7 @@ where
 }
 
 /// Convert RGB (RGB8 or RGB24) to YUV planar format
-fn ndarray_rgb_to_yuv<T, U>(src: &Array3<T>, dst_format: &str) -> Result<Array3<U>>
+fn ndarray_rgb_to_yuv<T, U>(src: &Array3<T>, dst_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
@@ -627,20 +792,15 @@ where
     let (height, width, _channels) = src.dim();
 
     // Get UV plane dimensions based on format
-    let (uv_width_ratio, uv_height_ratio) = match dst_format {
-        PIXEL_FORMAT_YUV410P => (4, 4),
-        PIXEL_FORMAT_YUV411P => (4, 1),
-        PIXEL_FORMAT_YUV420P => (2, 2),
-        PIXEL_FORMAT_YUV422P => (2, 1),
-        PIXEL_FORMAT_YUV440P => (1, 2),
-        PIXEL_FORMAT_YUV444P => (1, 1),
-        _ => {
-            return Err(Error::msg(format!(
-                "Unsupported YUV format: {}",
-                dst_format
-            )))
-        }
-    };
+    let yuv_params = dst_format.yuv_params();
+    if yuv_params.is_none() {
+        return Err(Error::msg(format!(
+            "Unsupported to YUV format: {:?}",
+            dst_format
+        )));
+    }
+    let (_params, dimensions) = yuv_params.unwrap();
+    let (uv_width_ratio, uv_height_ratio) = (dimensions.width, dimensions.height);
 
     let uv_height = height.div_ceil(uv_height_ratio);
     let _uv_width = width.div_ceil(uv_width_ratio);
@@ -752,14 +912,14 @@ mod tests {
 
         // Test RGB8 <-> BGR8
         let result =
-            convert_pixel_format::<u8, u8>(&rgb8_img, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8)
+            convert_pixel_format::<u8, u8>(&rgb8_img, PixelFormat::RGB8, PixelFormat::BGR8)
                 .unwrap();
 
         assert_eq!(result.dim(), (test_size.0, test_size.1, 3));
 
         // Convert back
         let back_to_rgb =
-            convert_pixel_format::<u8, u8>(&result, PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8).unwrap();
+            convert_pixel_format::<u8, u8>(&result, PixelFormat::BGR8, PixelFormat::RGB8).unwrap();
 
         assert_eq!(rgb8_img, back_to_rgb);
 
@@ -778,7 +938,7 @@ mod tests {
         let rgba_img: Array3<u8> = create_test_image(test_size.0, test_size.1, 4, "gradient");
 
         // Test RGBA -> RGB8 -> RGBA conversions
-        let rgb8 = convert_pixel_format::<u8, u8>(&rgba_img, PIXEL_FORMAT_RGBA, PIXEL_FORMAT_RGB8)
+        let rgb8 = convert_pixel_format::<u8, u8>(&rgba_img, PixelFormat::RGBA, PixelFormat::RGB8)
             .unwrap();
 
         // 验证 RGB8 转换结果的维度和RGB通道
@@ -792,7 +952,7 @@ mod tests {
         }
 
         let back_to_rgba =
-            convert_pixel_format::<u8, u8>(&rgb8, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_RGBA).unwrap();
+            convert_pixel_format::<u8, u8>(&rgb8, PixelFormat::RGB8, PixelFormat::RGBA).unwrap();
 
         // 验证 RGBA 转换结果的维度
         assert_eq!(back_to_rgba.dim(), (test_size.0, test_size.1, 4));
@@ -829,40 +989,6 @@ mod tests {
         );
     }
 
-    /// Test Gray format conversions
-    #[test]
-    fn test_gray_conversions() {
-        let start = Instant::now();
-
-        let test_size = (32, 32);
-        let gray8_img: Array3<u8> = create_test_image(test_size.0, test_size.1, 1, "gradient");
-
-        // Test GRAY8 -> GRAY16
-        let result =
-            convert_pixel_format::<u8, u16>(&gray8_img, PIXEL_FORMAT_GRAY8, PIXEL_FORMAT_GRAY16)
-                .unwrap();
-
-        assert_eq!(result.dim(), (test_size.0, test_size.1, 1));
-
-        // Convert back
-        let back_to_gray8 =
-            convert_pixel_format::<u16, u8>(&result, PIXEL_FORMAT_GRAY16, PIXEL_FORMAT_GRAY8)
-                .unwrap();
-
-        // Allow small differences due to conversion
-        for h in 0..test_size.0 {
-            for w in 0..test_size.1 {
-                let diff = (gray8_img[[h, w, 0]] as i16 - back_to_gray8[[h, w, 0]] as i16).abs();
-                assert!(diff <= 1);
-            }
-        }
-
-        println!(
-            "Gray conversion test completed in: {}ms",
-            start.elapsed().as_millis()
-        );
-    }
-
     /// Test YUV format conversions
     #[test]
     fn test_yuv_conversions() {
@@ -873,12 +999,12 @@ mod tests {
 
         // Convert RGB8 -> YUV444P
         let yuv_result =
-            convert_pixel_format::<u8, u8>(&rgb8_img, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_YUV444P)
+            convert_pixel_format::<u8, u8>(&rgb8_img, PixelFormat::RGB8, PixelFormat::YUV444P)
                 .unwrap();
 
         // Convert back YUV444P -> RGB8
         let back_to_rgb =
-            convert_pixel_format::<u8, u8>(&yuv_result, PIXEL_FORMAT_YUV444P, PIXEL_FORMAT_RGB8)
+            convert_pixel_format::<u8, u8>(&yuv_result, PixelFormat::YUV444P, PixelFormat::RGB8)
                 .unwrap();
 
         // Check dimensions
@@ -903,34 +1029,6 @@ mod tests {
         );
     }
 
-    /// Test invalid format handling
-    #[test]
-    fn test_invalid_formats() {
-        let start = Instant::now();
-
-        let test_size = (32, 32);
-        let img: Array3<u8> = create_test_image(test_size.0, test_size.1, 3, "gradient");
-
-        // Test invalid source format
-        let result = convert_pixel_format::<u8, u8>(&img, "INVALID_FORMAT", PIXEL_FORMAT_RGB8);
-        assert!(result.is_err());
-
-        // Test invalid destination format
-        let result = convert_pixel_format::<u8, u8>(&img, PIXEL_FORMAT_RGB8, "INVALID_FORMAT");
-        assert!(result.is_err());
-
-        // Test invalid channel count
-        let invalid_img: Array3<u8> = Array3::zeros((32, 32, 5)); // 5 channels
-        let result =
-            convert_pixel_format::<u8, u8>(&invalid_img, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8);
-        assert!(result.is_err());
-
-        println!(
-            "Invalid format test completed in: {}ms",
-            start.elapsed().as_millis()
-        );
-    }
-
     /// Test type conversion
     #[test]
     fn test_type_conversions() {
@@ -941,10 +1039,10 @@ mod tests {
 
         // Test RGB8 -> BGR8 -> RGB8 with type conversion
         let result_u16 =
-            convert_pixel_format::<u8, u16>(&img_u8, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8).unwrap();
+            convert_pixel_format::<u8, u16>(&img_u8, PixelFormat::RGB8, PixelFormat::BGR8).unwrap();
 
         let back_to_u8 =
-            convert_pixel_format::<u16, u8>(&result_u16, PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8)
+            convert_pixel_format::<u16, u8>(&result_u16, PixelFormat::BGR8, PixelFormat::RGB8)
                 .unwrap();
 
         assert_eq!(img_u8, back_to_u8);
@@ -965,10 +1063,10 @@ mod tests {
 
         // Test RGB -> BGR -> RGB conversion instead
         let bgr_result =
-            convert_pixel_format::<u8, u8>(&img, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_BGR8).unwrap();
+            convert_pixel_format::<u8, u8>(&img, PixelFormat::RGB8, PixelFormat::BGR8).unwrap();
 
         let rgb_result =
-            convert_pixel_format::<u8, u8>(&bgr_result, PIXEL_FORMAT_BGR8, PIXEL_FORMAT_RGB8)
+            convert_pixel_format::<u8, u8>(&bgr_result, PixelFormat::BGR8, PixelFormat::RGB8)
                 .unwrap();
 
         assert_eq!(rgb_result.dim(), img.dim());
@@ -999,7 +1097,7 @@ mod tests {
     fn test_rgb4_to_gray8_white() -> Result<()> {
         // RGB4 最大值为 15
         let rgb = create_image(2, 2, 15u8, 15u8, 15u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB4, PixelFormat::GRAY8)?;
 
         // 全白图像，转换后应该是 255
         assert_eq!(gray[[0, 0, 0]], 255);
@@ -1011,7 +1109,7 @@ mod tests {
     fn test_rgb4_to_gray8_black() -> Result<()> {
         // RGB4 最小值为 0
         let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB4, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB4, PixelFormat::GRAY8)?;
 
         // 全黑图像，转换后应该是 0
         assert_eq!(gray[[0, 0, 0]], 0);
@@ -1023,7 +1121,7 @@ mod tests {
     fn test_rgb8_to_gray8_white() -> Result<()> {
         // RGB8 最大值为 255
         let rgb = create_image(2, 2, 255u8, 255u8, 255u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 全白图像，转换后应该是 255
         assert_eq!(gray[[0, 0, 0]], 255);
@@ -1035,7 +1133,7 @@ mod tests {
     fn test_rgb8_to_gray8_black() -> Result<()> {
         // RGB8 最小值为 0
         let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 全黑图像，转换后应该是 0
         assert_eq!(gray[[0, 0, 0]], 0);
@@ -1047,7 +1145,7 @@ mod tests {
     fn test_rgb8_to_gray8_red() -> Result<()> {
         // 纯红色图像
         let rgb = create_image(2, 2, 255u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // R 权重为 0.2126，因此灰度值应该约为 54
         assert_eq!(gray[[0, 0, 0]], 54);
@@ -1059,7 +1157,7 @@ mod tests {
     fn test_rgb8_to_gray8_green() -> Result<()> {
         // 纯绿色图像
         let rgb = create_image(2, 2, 0u8, 255u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // G 权重为 0.7152，因此灰度值应该约为 182
         assert_eq!(gray[[0, 0, 0]], 182);
@@ -1071,7 +1169,7 @@ mod tests {
     fn test_rgb8_to_gray8_blue() -> Result<()> {
         // 纯蓝色图像
         let rgb = create_image(2, 2, 0u8, 0u8, 255u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // B 权重为 0.0722，因此灰度值应该约为 18
         assert_eq!(gray[[0, 0, 0]], 18);
@@ -1087,7 +1185,7 @@ mod tests {
         rgb[[0, 0, 1]] = 128; // G
         rgb[[0, 0, 2]] = 64; // B
 
-        let gray = convert_pixel_format::<u8, u8>(&rgb, PIXEL_FORMAT_RGB8, PIXEL_FORMAT_GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 计算期望的灰度值：
         // 255 * 0.2126 + 128 * 0.7152 + 64 * 0.0722 ≈ 150
