@@ -64,7 +64,8 @@ pub const VALID_FORMATS: [&str; 23] = [
     PIXEL_FORMAT_YUV444P,
 ];
 
-/// ITU-R BT.601-7: <https://www.itu.int/rec/R-REC-BT.601>
+/// BT.709-6: <https://www.itu.int/rec/R-REC-BT.709>
+/// BT.601-7: <https://www.itu.int/rec/R-REC-BT.601>
 /// YUV to RGB conversion (BT.601):
 ///
 /// `R = Y + 1.4021*V`
@@ -90,12 +91,13 @@ pub fn yuv_to_rgb(y: f64, u: f64, v: f64) -> (f64, f64, f64) {
     )
 }
 
-/// ITU-R BT.601-7: <https://www.itu.int/rec/R-REC-BT.601>
+/// BT.709-6: <https://www.itu.int/rec/R-REC-BT.709>
+/// BT.601-7: <https://www.itu.int/rec/R-REC-BT.601>
 /// RGB to YUV conversion (BT.601):
 ///
-/// `Y = 0.299R + 0.587G + 0.114B`
-/// `U = -0.169R - 0.331G + 0.500B + 128`
-/// `V = 0.500R - 0.419G - 0.081B + 128`
+/// `Y = 0.299*R  + 0.587*G + 0.114*B`
+/// `U = -0.169*R - 0.331*G + 0.500*B + 128`
+/// `V = 0.500*R  - 0.419*G - 0.081*B + 128`
 ///
 /// Input: RGB values in range [0, 255]
 /// Output: YUV values in range [0, 255]
