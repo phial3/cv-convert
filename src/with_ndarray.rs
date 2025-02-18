@@ -520,7 +520,7 @@ where
     }
 
     // 如果源格式和目标格式相同，直接复制数据
-    if src_fmt.pix_fmt() == dst_fmt.pix_fmt() {
+    if src_fmt == dst_fmt {
         return Ok(Array3::from_shape_fn(src.raw_dim(), |idx| {
             NumCast::from(src[idx].clone().to_f64().unwrap()).unwrap()
         }));

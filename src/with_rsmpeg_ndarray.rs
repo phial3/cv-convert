@@ -15,20 +15,26 @@ impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
             return Err(Error::msg("Cannot get frame data error"));
         }
 
-        let width = frame.width as usize;
-        let height = frame.height as usize;
-        let pix_fmt = get_pixel_format(frame.format).unwrap();
+        let pix_fmt = get_pixel_format(frame.format)
+            .map_err(|_| {
+                Error::msg(format!(
+                    "Unsupported AVFrame pixel format: {}",
+                    frame.format
+                ))
+            })
+            .unwrap();
+
         match pix_fmt {
             PixelFormat::RGB4
             | PixelFormat::RGB8
             | PixelFormat::RGB24
             | PixelFormat::BGR4
             | PixelFormat::BGR8
-            | PixelFormat::BGR24 => handle_rgb(frame, height, width, pix_fmt.bits_per_pixel()),
+            | PixelFormat::BGR24 => avframe_rgb_to_array(frame, pix_fmt.bits_per_pixel()),
             PixelFormat::RGBA | PixelFormat::BGRA => {
-                handle_rgba(frame, height, width, pix_fmt.bits_per_pixel())
+                avframe_rgba_to_array(frame, pix_fmt.bits_per_pixel())
             }
-            PixelFormat::GRAY8 => handle_gray(frame, height, width, pix_fmt.bits_per_pixel()),
+            PixelFormat::GRAY8 => avframe_gray_to_array(frame, pix_fmt.bits_per_pixel()),
             PixelFormat::YUV410P
             | PixelFormat::YUV411P
             | PixelFormat::YUV420P
@@ -36,7 +42,7 @@ impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
             | PixelFormat::YUV440P
             | PixelFormat::YUV444P => {
                 let (params, _dimensions) = pix_fmt.yuv_params().unwrap();
-                handle_yuv(frame, height, width, params.subsample_x, params.subsample_y)
+                avframe_yuv_to_array(frame, params.subsample_x, params.subsample_y)
             }
             _ => Err(Error::msg(format!(
                 "Unsupported pixel format: {:?}",
@@ -62,108 +68,34 @@ impl<T: PixelType, F: AVFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame
     fn try_from_cv(arr_with_fmt: ArrayWithFormat<T, F>) -> Result<Self, Self::Error> {
         let array = arr_with_fmt.array;
         let format = arr_with_fmt.format;
-        let (height, width, _channels) = array.dim();
+        let pix_fmt = format.pix_fmt();
 
-        // 创建并设置 AVFrame
-        let mut frame = AVFrame::new();
-        frame.set_format(format.pix_fmt());
-        frame.set_width(width as i32);
-        frame.set_height(height as i32);
-        frame.alloc_buffer()?;
-
-        // 获取像素格式的YUV参数
-        let yuv_params = format.yuv_params();
-
-        unsafe {
-            let frame_ptr = frame.as_mut_ptr();
-
-            match format.pix_fmt() {
-                // RGB 格式处理
-                f if f == PixelFormat::RGB24.pix_fmt() || f == PixelFormat::BGR24.pix_fmt() => {
-                    let line_size = (*frame_ptr).linesize[0] as usize;
-                    let data_ptr = (*frame_ptr).data[0];
-
-                    for y in 0..height {
-                        let row_ptr = data_ptr.add(y * line_size);
-                        for x in 0..width {
-                            for c in 0..3 {
-                                *row_ptr.add(x * 3 + c) = array[[y, x, c]].to_u8().unwrap();
-                            }
-                        }
-                    }
-                }
-
-                // RGBA/BGRA 格式处理
-                f if f == PixelFormat::RGBA.pix_fmt() || f == PixelFormat::BGRA.pix_fmt() => {
-                    let line_size = (*frame_ptr).linesize[0] as usize;
-                    let data_ptr = (*frame_ptr).data[0];
-
-                    for y in 0..height {
-                        let row_ptr = data_ptr.add(y * line_size);
-                        for x in 0..width {
-                            for c in 0..4 {
-                                *row_ptr.add(x * 4 + c) = array[[y, x, c]].to_u8().unwrap();
-                            }
-                        }
-                    }
-                }
-
-                // YUV 平面格式处理
-                f if f == PixelFormat::YUV420P.pix_fmt()
-                    || f == PixelFormat::YUV422P.pix_fmt()
-                    || f == PixelFormat::YUV444P.pix_fmt() =>
-                {
-                    let (yuv_params, uv_dims) = yuv_params.unwrap();
-
-                    // Y平面处理
-                    let y_line_size = (*frame_ptr).linesize[0] as usize;
-                    let y_ptr = (*frame_ptr).data[0];
-                    for y in 0..height {
-                        let row_ptr = y_ptr.add(y * y_line_size);
-                        for x in 0..width {
-                            *row_ptr.add(x) = array[[y, x, 0]].to_u8().unwrap();
-                        }
-                    }
-
-                    // UV平面处理
-                    let uv_width = width >> yuv_params.subsample_x;
-                    let uv_height = height >> yuv_params.subsample_y;
-                    let u_line_size = (*frame_ptr).linesize[1] as usize;
-                    let v_line_size = (*frame_ptr).linesize[2] as usize;
-                    let u_ptr = (*frame_ptr).data[1];
-                    let v_ptr = (*frame_ptr).data[2];
-
-                    for y in 0..uv_height {
-                        let u_row_ptr = u_ptr.add(y * u_line_size);
-                        let v_row_ptr = v_ptr.add(y * v_line_size);
-                        for x in 0..uv_width {
-                            let src_y = y * uv_dims.height;
-                            let src_x = x * uv_dims.width;
-
-                            *u_row_ptr.add(x) = array[[src_y, src_x, 1]].to_u8().unwrap();
-                            *v_row_ptr.add(x) = array[[src_y, src_x, 2]].to_u8().unwrap();
-                        }
-                    }
-                }
-
-                // 灰度图格式处理
-                f if f == PixelFormat::GRAY8.pix_fmt() => {
-                    let line_size = (*frame_ptr).linesize[0] as usize;
-                    let data_ptr = (*frame_ptr).data[0];
-
-                    for y in 0..height {
-                        let row_ptr = data_ptr.add(y * line_size);
-                        for x in 0..width {
-                            *row_ptr.add(x) = array[[y, x, 0]].to_u8().unwrap();
-                        }
-                    }
-                }
-
-                _ => return Err(Error::msg("Unsupported pixel format")),
+        match pix_fmt {
+            f if f == PixelFormat::RGB4.pix_fmt()
+                || f == PixelFormat::RGB8.pix_fmt()
+                || f == PixelFormat::RGB24.pix_fmt()
+                || f == PixelFormat::BGR4.pix_fmt()
+                || f == PixelFormat::BGR8.pix_fmt()
+                || f == PixelFormat::BGR24.pix_fmt() =>
+            {
+                array_rgb_to_avframe(&array, format)
             }
-        }
+            f if f == PixelFormat::RGBA.pix_fmt() || f == PixelFormat::BGRA.pix_fmt() => {
+                array_rgba_to_avframe(&array, format)
+            }
+            f if f == PixelFormat::GRAY8.pix_fmt() => array_gray_to_avframe(&array, format),
+            f if f == PixelFormat::YUV410P.pix_fmt()
+                || f == PixelFormat::YUV411P.pix_fmt()
+                || f == PixelFormat::YUV420P.pix_fmt()
+                || f == PixelFormat::YUV422P.pix_fmt()
+                || f == PixelFormat::YUV440P.pix_fmt()
+                || f == PixelFormat::YUV444P.pix_fmt() =>
+            {
+                array_yuv_to_avframe(&array, format)
+            }
 
-        Ok(frame)
+            _ => Err(Error::msg("Unsupported Array3 pixel format to AVFrame")),
+        }
     }
 }
 
@@ -198,15 +130,12 @@ fn get_pixel_format(format: ffi::AVPixelFormat) -> Result<PixelFormat> {
 }
 
 // 处理 RGB 格式
-fn handle_rgb<T>(
+fn avframe_rgb_to_array<T: PixelType>(
     frame: &AVFrame,
-    height: usize,
-    width: usize,
     bits_per_pixel: u32,
-) -> Result<Array3<T>, Error>
-where
-    T: Copy + Clone + NumCast + Zero + 'static,
-{
+) -> Result<Array3<T>, Error> {
+    let height = frame.height as usize;
+    let width = frame.width as usize;
     let channels = bits_per_pixel.div_ceil(8);
     let mut array = Array3::zeros((height, width, channels as usize));
     let stride = frame.linesize[0] as usize;
@@ -224,30 +153,24 @@ where
     Ok(array)
 }
 
-fn handle_rgba<T>(
-    frame: &AVFrame,
-    height: usize,
-    width: usize,
-    bits_per_pixel: u32,
-) -> Result<Array3<T>>
-where
-    T: Copy + Clone + NumCast + Zero + 'static,
-{
+fn avframe_rgba_to_array<T: PixelType>(frame: &AVFrame, bits_per_pixel: u32) -> Result<Array3<T>> {
     // 参数验证
     if bits_per_pixel != 32 {
         return Err(Error::msg("Only 32-bit RGBA format is supported"));
     }
 
-    // 确保输入frame数据有效
-    let data = frame.data[0];
-
     // 计算每个颜色通道的字节数
     let _bytes_per_channel = (bits_per_pixel / 32) * 8;
+
+    let data_ptr = frame.data[0];
+    let height = frame.height as usize;
+    let width = frame.width as usize;
     let linesize = frame.linesize[0] as usize;
     let mut array = Array3::<T>::zeros((height, width, 4));
 
     // 安全地将frame数据转换为切片
-    let frame_data = unsafe { std::slice::from_raw_parts(data as *const u8, linesize * height) };
+    let frame_data =
+        unsafe { std::slice::from_raw_parts(data_ptr as *const u8, linesize * height) };
 
     // 遍历每个像素并复制数据
     for y in 0..height {
@@ -266,15 +189,9 @@ where
     Ok(array)
 }
 
-fn handle_gray<T>(
-    frame: &AVFrame,
-    height: usize,
-    width: usize,
-    _bits: u32,
-) -> Result<Array3<T>, Error>
-where
-    T: Copy + Clone + NumCast + Zero + 'static,
-{
+fn avframe_gray_to_array<T: PixelType>(frame: &AVFrame, _bits: u32) -> Result<Array3<T>, Error> {
+    let height = frame.height as usize;
+    let width = frame.width as usize;
     let mut array = Array3::zeros((height, width, 1));
     let stride = frame.linesize[0] as usize;
 
@@ -289,16 +206,13 @@ where
     Ok(array)
 }
 
-fn handle_yuv<T>(
+fn avframe_yuv_to_array<T: PixelType>(
     frame: &AVFrame,
-    height: usize,
-    width: usize,
     subsample_x: u32,
     subsample_y: u32,
-) -> Result<Array3<T>, Error>
-where
-    T: Copy + Clone + NumCast + Zero + 'static,
-{
+) -> Result<Array3<T>, Error> {
+    let height = frame.height as usize;
+    let width = frame.width as usize;
     let mut array = Array3::zeros((height, width, 3));
 
     // 检查所有平面的数据指针
@@ -333,6 +247,153 @@ where
     }
 
     Ok(array)
+}
+
+///////////////////////////////////////////////////
+
+fn array_rgb_to_avframe<T: PixelType, F: AVFramePixel>(
+    array: &Array3<T>,
+    format: F,
+) -> Result<AVFrame> {
+    let (height, width, _channels) = array.dim();
+
+    // 创建并设置 AVFrame
+    let mut frame = AVFrame::new();
+    frame.set_format(format.pix_fmt());
+    frame.set_width(width as i32);
+    frame.set_height(height as i32);
+    frame.alloc_buffer()?;
+
+    let frame_ptr = frame.as_mut_ptr();
+    unsafe {
+        let line_size = (*frame_ptr).linesize[0] as usize;
+        let data_ptr = (*frame_ptr).data[0];
+
+        for y in 0..height {
+            let row_ptr = data_ptr.add(y * line_size);
+            for x in 0..width {
+                for c in 0..3 {
+                    *row_ptr.add(x * 3 + c) = array[[y, x, c]].to_u8().unwrap();
+                }
+            }
+        }
+    }
+
+    Ok(frame)
+}
+
+fn array_rgba_to_avframe<T: PixelType, F: AVFramePixel>(
+    array: &Array3<T>,
+    format: F,
+) -> Result<AVFrame> {
+    let (height, width, _channels) = array.dim();
+
+    // 创建并设置 AVFrame
+    let mut frame = AVFrame::new();
+    frame.set_format(format.pix_fmt());
+    frame.set_width(width as i32);
+    frame.set_height(height as i32);
+    frame.alloc_buffer()?;
+
+    let frame_ptr = frame.as_mut_ptr();
+    unsafe {
+        let line_size = (*frame_ptr).linesize[0] as usize;
+        let data_ptr = (*frame_ptr).data[0];
+
+        for y in 0..height {
+            let row_ptr = data_ptr.add(y * line_size);
+            for x in 0..width {
+                for c in 0..4 {
+                    *row_ptr.add(x * 4 + c) = array[[y, x, c]].to_u8().unwrap();
+                }
+            }
+        }
+    }
+
+    Ok(frame)
+}
+
+fn array_gray_to_avframe<T: PixelType, F: AVFramePixel>(
+    array: &Array3<T>,
+    format: F,
+) -> Result<AVFrame> {
+    let (height, width, _channels) = array.dim();
+
+    // 创建并设置 AVFrame
+    let mut frame = AVFrame::new();
+    frame.set_format(format.pix_fmt());
+    frame.set_width(width as i32);
+    frame.set_height(height as i32);
+    frame.alloc_buffer()?;
+
+    let frame_ptr = frame.as_mut_ptr();
+    unsafe {
+        let line_size = (*frame_ptr).linesize[0] as usize;
+        let data_ptr = (*frame_ptr).data[0];
+
+        for y in 0..height {
+            let row_ptr = data_ptr.add(y * line_size);
+            for x in 0..width {
+                *row_ptr.add(x) = array[[y, x, 0]].to_u8().unwrap();
+            }
+        }
+    }
+
+    Ok(frame)
+}
+
+fn array_yuv_to_avframe<T: PixelType, F: AVFramePixel>(
+    array: &Array3<T>,
+    format: F,
+) -> Result<AVFrame> {
+    let (height, width, _channels) = array.dim();
+
+    // 创建并设置 AVFrame
+    let mut frame = AVFrame::new();
+    frame.set_format(format.pix_fmt());
+    frame.set_width(width as i32);
+    frame.set_height(height as i32);
+    frame.alloc_buffer()?;
+
+    let frame_ptr = frame.as_mut_ptr();
+
+    // 获取像素格式的YUV参数
+    let yuv_params = format.yuv_params();
+    let (yuv_params, uv_dims) = yuv_params.unwrap();
+
+    unsafe {
+        // Y平面处理
+        let y_line_size = (*frame_ptr).linesize[0] as usize;
+        let y_ptr = (*frame_ptr).data[0];
+        for y in 0..height {
+            let row_ptr = y_ptr.add(y * y_line_size);
+            for x in 0..width {
+                *row_ptr.add(x) = array[[y, x, 0]].to_u8().unwrap();
+            }
+        }
+
+        // UV平面处理
+        let uv_width = width >> yuv_params.subsample_x;
+        let uv_height = height >> yuv_params.subsample_y;
+        let u_line_size = (*frame_ptr).linesize[1] as usize;
+        let v_line_size = (*frame_ptr).linesize[2] as usize;
+        let u_ptr = (*frame_ptr).data[1];
+        let v_ptr = (*frame_ptr).data[2];
+
+        for y in 0..uv_height {
+            let u_row_ptr = u_ptr.add(y * u_line_size);
+            let v_row_ptr = v_ptr.add(y * v_line_size);
+            for x in 0..uv_width {
+                let src_y = y * uv_dims.height;
+                let src_x = x * uv_dims.width;
+
+                *u_row_ptr.add(x) = array[[src_y, src_x, 1]].to_u8().unwrap();
+                *v_row_ptr.add(x) = array[[src_y, src_x, 2]].to_u8().unwrap();
+            }
+        }
+    }
+
+    Ok(frame)
 }
 
 #[cfg(test)]
