@@ -1,7 +1,7 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
-use opencv::{core::Mat, prelude::*};
+use opencv::prelude::*;
 use std::ops::Deref;
 
 // ImageBuffer -> Mat
@@ -29,12 +29,11 @@ where
         let (width, height) = from.dimensions();
         let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
         let mat = unsafe {
-            Mat::new_rows_cols_with_data_unsafe(
-                height as i32,               // 行数
-                width as i32,                // 列数
-                cv_type,                     //
-                from.as_ptr() as *mut _,     // 获取 ImageBuffer 底层数据切片
-                opencv::core::Mat_AUTO_STEP, // 步长
+            Mat::new_rows_cols_with_data_unsafe_def(
+                height as i32,           // 行数
+                width as i32,            // 列数
+                cv_type,                 // 类型
+                from.as_ptr() as *mut _, // image 数据
             )?
             .try_clone()?
         };
@@ -252,7 +251,7 @@ mod tests {
     use crate::TryIntoCv;
     use anyhow::Result;
     use itertools::iproduct;
-    use opencv::{core::Mat, prelude::*};
+    use opencv::prelude::*;
 
     #[test]
     fn convert_opencv_image() -> Result<()> {
