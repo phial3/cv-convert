@@ -6,7 +6,7 @@ use num_traits::{NumCast, Zero};
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
 
-// &AVFrame -> Array3 的具体实现
+// &AVFrame -> Array3
 impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
     type Error = Error;
 
@@ -46,7 +46,7 @@ impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
     }
 }
 
-// AVFrame -> Array3 的具体实现
+// AVFrame -> Array3
 impl<T: PixelType> TryFromCv<AVFrame> for Array3<T> {
     type Error = Error;
 
@@ -55,7 +55,7 @@ impl<T: PixelType> TryFromCv<AVFrame> for Array3<T> {
     }
 }
 
-// 实现 Array3 到 AVFrame 的转换
+// Array3 -> AVFrame
 impl<T: PixelType, F: AVFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame {
     type Error = Error;
 
@@ -173,12 +173,12 @@ fn get_pixel_format(format: ffi::AVPixelFormat) -> Result<PixelFormat> {
         ffi::AV_PIX_FMT_RGB4 => Ok(PixelFormat::RGB4),
         ffi::AV_PIX_FMT_RGB8 => Ok(PixelFormat::RGB8),
         ffi::AV_PIX_FMT_RGB24 => Ok(PixelFormat::RGB24),
-        // ffi::AV_PIX_FMT_RGB32 => Ok(PixelFormat::RGB32), // RGB32 == BGRA 28
+        // ffi::AV_PIX_FMT_RGB32 => Ok(PixelFormat::RGB32), // RGB32 == BGRA : 28
         // BGR
         ffi::AV_PIX_FMT_BGR4 => Ok(PixelFormat::BGR4),
         ffi::AV_PIX_FMT_BGR8 => Ok(PixelFormat::BGR8),
         ffi::AV_PIX_FMT_BGR24 => Ok(PixelFormat::BGR24),
-        // ffi::AV_PIX_FMT_BGR32 => Ok(PixelFormat::BGR32), // BGR32 == RGBA 26
+        // ffi::AV_PIX_FMT_BGR32 => Ok(PixelFormat::BGR32), // BGR32 == RGBA : 26
         // RGBA/BGRA
         ffi::AV_PIX_FMT_RGBA => Ok(PixelFormat::RGBA),
         ffi::AV_PIX_FMT_BGRA => Ok(PixelFormat::BGRA),

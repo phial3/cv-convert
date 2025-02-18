@@ -5,7 +5,6 @@ use num_traits::{NumCast, Zero};
 pub use pix_fmt::*;
 mod pix_fmt {
     use super::*;
-    use rsmpeg::ffi;
     use std::fmt::Debug;
 
     pub trait PixelType: Copy + Clone + NumCast + Zero + 'static {}
@@ -17,23 +16,23 @@ mod pix_fmt {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum PixelFormat {
-        // RGB 格式
+        // RGB
         RGB4,
         RGB8,
         RGB24,
-        RGB32,
-        // BGR 格式
+        // RGB32, // == BGRA
+        // BGR
         BGR4,
         BGR8,
         BGR24,
-        BGR32,
-        // RGBA 格式
+        // BGR32, // == RGBA
+        // RGBA
         RGBA,
-        // BGRA 格式
+        // BGRA
         BGRA,
-        // Gray 格式
+        // Gray
         GRAY8,
-        // YUV 格式
+        // YUV
         YUV410P,
         YUV411P,
         YUV420P,
@@ -74,13 +73,13 @@ mod pix_fmt {
                 Self::RGB4 => 21,
                 Self::RGB8 => 20,
                 Self::RGB24 => 2,
-                Self::RGB32 => 28, //
-                Self::BGRA => 28,  //
+                // Self::RGB32 => 28, //
+                Self::BGRA => 28, //
                 Self::BGR4 => 18,
                 Self::BGR8 => 17,
                 Self::BGR24 => 3,
-                Self::BGR32 => 26, //
-                Self::RGBA => 26,  //
+                // Self::BGR32 => 26, //
+                Self::RGBA => 26, //
                 Self::GRAY8 => 8,
                 Self::YUV410P => 6,
                 Self::YUV411P => 7,
@@ -96,7 +95,7 @@ mod pix_fmt {
             match self {
                 Self::GRAY8 => 1,
                 Self::RGB4 | Self::RGB8 | Self::RGB24 | Self::BGR4 | Self::BGR8 | Self::BGR24 => 3,
-                Self::RGB32 | Self::BGR32 | Self::RGBA | Self::BGRA => 4,
+                Self::RGBA | Self::BGRA => 4,
                 Self::YUV410P
                 | Self::YUV411P
                 | Self::YUV420P
@@ -113,9 +112,7 @@ mod pix_fmt {
                 Self::RGB4 | Self::BGR4 => 1,
                 // RGB8/BGR8 每个通道实际是2.67位(8位总共表示RGB)
                 Self::RGB8 | Self::BGR8 => 2, // 修改为2位/通道
-                Self::RGB24 | Self::RGB32 | Self::BGR24 | Self::BGR32 | Self::RGBA | Self::BGRA => {
-                    8
-                }
+                Self::RGB24 | Self::BGR24 | Self::RGBA | Self::BGRA => 8,
                 Self::GRAY8 => 8,
                 Self::YUV410P
                 | Self::YUV411P
@@ -133,7 +130,6 @@ mod pix_fmt {
                 Self::RGB4 | Self::BGR4 => 4,
                 Self::RGB8 | Self::BGR8 => 8,
                 Self::RGB24 | Self::BGR24 => 24,
-                Self::RGB32 | Self::BGR32 => 32,
 
                 // RGBA/BGRA 格式
                 Self::RGBA | Self::BGRA => 32,
@@ -285,7 +281,7 @@ mod array_ext {
     use super::{AVFramePixel, PixelFormat, PixelType};
     use ndarray::Array3;
 
-    // 为Array3添加像素格式标记的扩展trait
+    // 为Array3 添加像素格式标记的扩展 trait
     pub trait ArrayExt<T: PixelType> {
         fn with_format<F: AVFramePixel>(self, format: F) -> ArrayWithFormat<T, F>;
     }
@@ -537,12 +533,10 @@ where
         (RGB4, BGR4) |
         (RGB8, BGR8) |
         (RGB24, BGR24) |
-        (RGB32, BGR32) |
         // BGR to RGB
         (BGR4, RGB4) |
         (BGR8, RGB8) |
-        (BGR24, RGB24) |
-        (BGR32, RGB32) => {
+        (BGR24, RGB24) => {
             swap_rgb_bgr(src)
         }
 
@@ -550,12 +544,10 @@ where
         (RGB4, RGBA) |
         (RGB8, RGBA) |
         (RGB24, RGBA) |
-        (RGB32, RGBA) |
         // BGR to BGRA
         (BGR4, BGRA) |
         (BGR8, BGRA) |
-        (BGR24, BGRA) |
-        (BGR32, BGRA) => {
+        (BGR24, BGRA)  => {
             let alpha_value = U::from(255).unwrap();
             add_alpha_channel(src, alpha_value)
         }
@@ -564,12 +556,10 @@ where
         (RGBA, RGB4) |
         (RGBA, RGB8) |
         (RGBA, RGB24) |
-        (RGBA, RGB32) |
         // BGRA to BGR
         (BGRA, BGR4) |
         (BGRA, BGR8) |
-        (BGRA, BGR24) |
-        (BGRA, BGR32) => {
+        (BGRA, BGR24) => {
             remove_alpha_channel(src)
         }
 
@@ -577,7 +567,7 @@ where
         (RGB4, GRAY8) => rgb_to_gray8(src, RGB4),
         (RGB8, GRAY8) => rgb_to_gray8(src, RGB8),
         (RGB24, GRAY8) => rgb_to_gray8(src, RGB24),
-        (RGB32, GRAY8) => rgb_to_gray8(src, RGB32),
+        (RGBA, GRAY8) => rgb_to_gray8(src, RGBA),
 
         // YUV to RGB8/RGB24
         (YUV410P, RGB8) |

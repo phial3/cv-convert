@@ -4,7 +4,7 @@ use image::{GrayImage, ImageBuffer, Luma, Rgb, RgbImage, Rgba, RgbaImage};
 use ndarray::Array3;
 use num_traits::{NumCast, Zero};
 
-// Array3<T> -> RgbImage 的基础实现
+// Array3<T> -> RgbImage
 impl<T> TryFromCv<Array3<T>> for RgbImage
 where
     T: Copy + Clone + NumCast + Zero,
@@ -37,7 +37,7 @@ where
     }
 }
 
-// RgbImage -> Array3<T> 的基础实现
+// RgbImage -> Array3<T>
 impl<T> TryFromCv<RgbImage> for Array3<T>
 where
     T: Copy + Clone + NumCast + Zero,
@@ -61,7 +61,7 @@ where
     }
 }
 
-// Array3<T> -> RgbaImage 的基础实现
+// Array3<T> -> RgbaImage
 impl<T> TryFromCv<Array3<T>> for RgbaImage
 where
     T: Copy + Clone + NumCast + Zero,
@@ -95,7 +95,7 @@ where
     }
 }
 
-// RgbaImage -> Array3<T> 的基础实现
+// RgbaImage -> Array3<T>
 impl<T> TryFromCv<RgbaImage> for Array3<T>
 where
     T: Copy + Clone + NumCast + Zero,
@@ -120,7 +120,7 @@ where
     }
 }
 
-// Array3<T> -> GrayImage 的基础实现
+// Array3<T> -> GrayImage
 impl<T> TryFromCv<Array3<T>> for GrayImage
 where
     T: Copy + Clone + NumCast + Zero,
@@ -149,7 +149,7 @@ where
     }
 }
 
-// GrayImage -> Array3<T> 的基础实现
+// GrayImage -> Array3<T>
 impl<T> TryFromCv<GrayImage> for Array3<T>
 where
     T: Copy + Clone + NumCast + Zero,
