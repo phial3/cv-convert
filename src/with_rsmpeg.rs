@@ -8,7 +8,7 @@ pub fn convert_avframe(
     src_frame: &AVFrame,
     dst_width: i32,
     dst_height: i32,
-    dst_pix_fmt: ffi::AVPixelFormat,
+    dst_pix_fmt: i32,
 ) -> Result<AVFrame> {
     /*
      * Scaler selection options. Only one may be active at a time.
