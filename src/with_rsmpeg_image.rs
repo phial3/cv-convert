@@ -4,6 +4,74 @@ use anyhow::{Error, Result};
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
 
+impl TryFromCv<&AVFrame> for image::DynamicImage {
+    type Error = Error;
+
+    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+        let format = from.format as i32;
+        let img: image::DynamicImage = match format {
+            ffi::AV_PIX_FMT_GRAY8 => avframe_to_image_buffer_gray(from),
+            ffi::AV_PIX_FMT_RGB24
+            | ffi::AV_PIX_FMT_BGR24
+            | ffi::AV_PIX_FMT_RGBA
+            | ffi::AV_PIX_FMT_BGRA
+            | ffi::AV_PIX_FMT_YUYV422
+            | ffi::AV_PIX_FMT_YUV420P
+            | ffi::AV_PIX_FMT_YUV422P
+            | ffi::AV_PIX_FMT_YUV410P
+            | ffi::AV_PIX_FMT_YUV411P
+            | ffi::AV_PIX_FMT_YUV444P => {
+                let from = with_rsmpeg::convert_avframe(
+                    from,
+                    from.width,
+                    from.height,
+                    ffi::AV_PIX_FMT_RGB24,
+                )?;
+                avframe_to_image_buffer_rgb(&from)
+            }
+            _ => anyhow::bail!("the pixel format {:?} is not supported", format),
+        };
+
+        Ok(img)
+    }
+}
+
+impl TryFromCv<AVFrame> for image::DynamicImage {
+    type Error = Error;
+    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
+        (&from).try_into_cv()
+    }
+}
+
+impl TryFromCv<&image::DynamicImage> for AVFrame {
+    type Error = Error;
+
+    fn try_from_cv(from: &image::DynamicImage) -> Result<Self, Self::Error> {
+        use image::DynamicImage;
+        let mat = match from {
+            DynamicImage::ImageLuma8(img) => img.try_into_cv()?,
+            // DynamicImage::ImageLumaA8(img) => img.try_into_cv()?,
+            DynamicImage::ImageRgb8(img) => img.try_into_cv()?,
+            // DynamicImage::ImageRgba8(img) => img.try_into_cv()?,
+            // DynamicImage::ImageLuma16(img) => img.try_into_cv()?,
+            // DynamicImage::ImageLumaA16(img) => img.try_into_cv()?,
+            // DynamicImage::ImageRgb16(img) => img.try_into_cv()?,
+            // DynamicImage::ImageRgba16(img) => img.try_into_cv()?,
+            // DynamicImage::ImageRgb32F(img) => img.try_into_cv()?,
+            // DynamicImage::ImageRgba32F(img) => img.try_into_cv()?,
+            img => anyhow::bail!("the color type {:?} is not supported", img.color()),
+        };
+        Ok(mat)
+    }
+}
+
+impl TryFromCv<image::DynamicImage> for AVFrame {
+    type Error = Error;
+    fn try_from_cv(from: image::DynamicImage) -> Result<Self, Self::Error> {
+        (&from).try_into_cv()
+    }
+}
+
 /// YUV to RGB conversion formulas (BT.601):
 /// R = Y + 1.402 * (V - 128)
 /// G = Y - 0.344136 * (U - 128) - 0.714136 * (V - 128)
@@ -497,6 +565,50 @@ impl TryFromCv<image::GrayImage> for AVFrame {
     fn try_from_cv(from: image::GrayImage) -> Result<Self, Self::Error> {
         (&from).try_into_cv()
     }
+}
+
+fn avframe_to_image_buffer_gray(frame: &AVFrame) -> image::DynamicImage {
+    let width = frame.width as u32;
+    let height = frame.height as u32;
+    let mut img = image::GrayImage::new(width, height);
+
+    unsafe {
+        let linesize = frame.linesize[0] as usize;
+        let data = std::slice::from_raw_parts(frame.data[0], height as usize * linesize);
+
+        for y in 0..height {
+            for x in 0..width {
+                let val = data[y as usize * linesize + x as usize];
+                img.put_pixel(x, y, image::Luma([val]));
+            }
+        }
+    }
+
+    image::DynamicImage::ImageLuma8(img)
+}
+
+fn avframe_to_image_buffer_rgb(frame: &AVFrame) -> image::DynamicImage {
+    let width = frame.width as u32;
+    let height = frame.height as u32;
+    let mut img = image::RgbImage::new(width, height);
+
+    unsafe {
+        let linesize = frame.linesize[0] as usize;
+        let data = std::slice::from_raw_parts(frame.data[0], height as usize * linesize);
+
+        for y in 0..height {
+            for x in 0..width {
+                let offset = y as usize * linesize + x as usize * 3;
+                img.put_pixel(
+                    x,
+                    y,
+                    image::Rgb([data[offset], data[offset + 1], data[offset + 2]]),
+                );
+            }
+        }
+    }
+
+    image::DynamicImage::ImageRgb8(img)
 }
 
 #[cfg(test)]
