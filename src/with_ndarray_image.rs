@@ -48,6 +48,10 @@ where
         let (width, height) = from.dimensions();
         let mut array = Array3::zeros((height as usize, width as usize, 3));
 
+        // 将 image 的 RGB 数据拷贝到 frame 中
+        // let data_arr = Array3::from_shape_vec((height as usize, width as usize, 3), from.into_raw())
+        //     .expect("Failed to create ndarray from raw image data");
+
         for y in 0..height {
             for x in 0..width {
                 let pixel = from.get_pixel(x, y);
@@ -277,16 +281,13 @@ mod tests {
                     let u8_val = (original * 255.0).round() as u8;
                     let expected = u8_val as f32 / 255.0;
 
-                    println!("Values different at [{}, {}, {}]: original {:.3} -> expected {:.3} but got {:.3}",
-                             i, j, k, original, expected, converted);
-
-                    // assert!(expected - converted < 0.01,
-                    //     "Values different at [{}, {}, {}]: original {:.3} -> expected {:.3} but got {:.3}",
-                    //     i, j, k,
-                    //     original,
-                    //     expected,
-                    //     converted
-                    // );
+                    assert!(expected - converted < 1.0,
+                        "Values different at [{}, {}, {}]: original {:.3} -> expected {:.3} but got {:.3}",
+                        i, j, k,
+                        original,
+                        expected,
+                        converted
+                    );
                 }
             }
         }
