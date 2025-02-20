@@ -1,13 +1,13 @@
+use crate::with_ndarray::{ArrayWithFormat, AvFramePixel, AvPixelFormat, PixelType};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use image::{GrayImage, ImageBuffer, Luma, Rgb, RgbImage, Rgba, RgbaImage};
 use ndarray::Array3;
-use num_traits::{NumCast, Zero};
 
 // Array3<T> -> RgbImage
 impl<T> TryFromCv<Array3<T>> for RgbImage
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
@@ -40,7 +40,7 @@ where
 // RgbImage -> Array3<T>
 impl<T> TryFromCv<RgbImage> for Array3<T>
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
@@ -68,7 +68,7 @@ where
 // Array3<T> -> RgbaImage
 impl<T> TryFromCv<Array3<T>> for RgbaImage
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
@@ -102,7 +102,7 @@ where
 // RgbaImage -> Array3<T>
 impl<T> TryFromCv<RgbaImage> for Array3<T>
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
@@ -127,7 +127,7 @@ where
 // Array3<T> -> GrayImage
 impl<T> TryFromCv<Array3<T>> for GrayImage
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
@@ -156,7 +156,7 @@ where
 // GrayImage -> Array3<T>
 impl<T> TryFromCv<GrayImage> for Array3<T>
 where
-    T: Copy + Clone + NumCast + Zero,
+    T: PixelType,
 {
     type Error = Error;
 
