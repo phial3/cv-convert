@@ -1,6 +1,6 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
-use anyhow::{Error, Result};
+use anyhow::{Context, Error, Result};
 use opencv::prelude::*;
 use std::ops::Deref;
 
@@ -245,12 +245,62 @@ where
     }
 }
 
+/// RgbImage 转换为 OpenCV Mat
+#[allow(dead_code)]
+fn image_to_mat(img: &image::RgbImage) -> Result<Mat> {
+    let width = img.width() as i32;
+    let height = img.height() as i32;
+
+    // 创建 RGB Mat
+    let rgb_mat = unsafe {
+        Mat::new_rows_cols_with_data_unsafe_def(
+            height,
+            width,
+            opencv::core::CV_8UC3,
+            img.as_raw().as_ptr() as *mut _,
+        )
+        .context("Failed to create RGB Mat")?
+    };
+
+    // 转换为 openCV 默认 BGR 格式
+    let mut bgr_mat = Mat::default();
+    opencv::imgproc::cvt_color_def(&rgb_mat, &mut bgr_mat, opencv::imgproc::COLOR_RGB2BGR)
+        .context("Failed to convert RGB to BGR")?;
+
+    Ok(bgr_mat)
+}
+
+/// OpenCV Mat 转换为 RgbImage
+#[allow(dead_code)]
+fn mat_to_image(mat: &Mat) -> Result<image::RgbImage> {
+    if mat.empty() {
+        return Err(anyhow::anyhow!("Input Mat is empty"));
+    }
+
+    // 转换为 RGB
+    let mut rgb_mat = Mat::default();
+    opencv::imgproc::cvt_color_def(mat, &mut rgb_mat, opencv::imgproc::COLOR_BGR2RGB)
+        .context("Failed to convert BGR to RGB")?;
+
+    let width = rgb_mat.cols() as u32;
+    let height = rgb_mat.rows() as u32;
+
+    // 获取连续数据
+    let buffer = rgb_mat
+        .data_bytes()
+        .context("Failed to get mat data")?
+        .to_vec();
+
+    image::RgbImage::from_raw(width, height, buffer)
+        .context("Failed to create RgbImage from Mat data")
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::with_opencv::MatExt;
     use crate::TryIntoCv;
-    use anyhow::Result;
-    use itertools::iproduct;
+    use anyhow::{Context, Result};
     use opencv::prelude::*;
 
     #[test]
@@ -264,7 +314,7 @@ mod tests {
             let image: image::GrayImage = (&mat).try_into_cv()?;
             let mat2: Mat = (&image).try_into_cv()?;
 
-            iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
+            itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: u8 = *mat.at_2d(row as i32, col as i32)?;
                 let p2 = image[(col as u32, row as u32)].0[0];
                 let p3: u8 = *mat2.at_2d(row as i32, col as i32)?;
@@ -279,7 +329,7 @@ mod tests {
             let image: image::RgbImage = (&mat).try_into_cv()?;
             let mat2: Mat = (&image).try_into_cv()?;
 
-            iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
+            itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: opencv::core::Point3_<u8> = *mat.at_2d(row as i32, col as i32)?;
                 let p2: image::Rgb<u8> = image[(col as u32, row as u32)];
                 let p3: opencv::core::Point3_<u8> = *mat2.at_2d(row as i32, col as i32)?;
@@ -295,6 +345,118 @@ mod tests {
                 anyhow::Ok(())
             })?;
         }
+
+        Ok(())
+    }
+
+    fn create_rgb_image() -> image::RgbImage {
+        let width = 320;
+        let height = 240;
+        let mut img = image::RgbImage::new(width, height);
+
+        // 创建一个简单的渐变图案
+        for y in 0..height {
+            for x in 0..width {
+                let r = (x as f32 / width as f32 * 255.0) as u8;
+                let g = (y as f32 / height as f32 * 255.0) as u8;
+                let b = ((x + y) as f32 / (width + height) as f32 * 255.0) as u8;
+                img.put_pixel(x, y, image::Rgb([r, g, b]));
+            }
+        }
+        img
+    }
+
+    fn create_test_mat() -> Result<Mat> {
+        let width = 320;
+        let height = 240;
+
+        // 创建一个 3 通道的空白图像
+        let mut mat = unsafe {
+            Mat::new_rows_cols(height, width, opencv::core::CV_8UC3)
+                .context("Failed to create Mat")?
+        };
+
+        // 创建渐变效果
+        for y in 0..height {
+            for x in 0..width {
+                let b = (y * 255 / height) as u8;
+                let g = (x * 255 / width) as u8;
+                let r = ((x + y) * 255 / (width + height)) as u8;
+
+                // 使用 Vec3b 设置像素值
+                let color = opencv::core::Vec3b::from([b, g, r]);
+                mat.at_2d_mut::<opencv::core::Vec3b>(y, x)
+                    .context("Failed to set pixel value")?
+                    .copy_from_slice(&color.0);
+            }
+        }
+
+        // 添加一些测试图形
+        // 1. 画一个矩形
+        opencv::imgproc::rectangle_points(
+            &mut mat,
+            opencv::core::Point::new(50, 50),
+            opencv::core::Point::new(100, 100),
+            opencv::core::Scalar::new(0.0, 0.0, 255.0, 0.0), // 红色
+            2,                                               // 线宽
+            opencv::imgproc::LINE_8,
+            0,
+        )
+        .context("Failed to draw rectangle")?;
+
+        // 2. 画一个圆
+        opencv::imgproc::circle(
+            &mut mat,
+            opencv::core::Point::new(width / 2, height / 2),
+            40,
+            opencv::core::Scalar::new(0.0, 255.0, 0.0, 0.0), // 绿色
+            2,                                               // 线宽
+            opencv::imgproc::LINE_8,
+            0,
+        )
+        .context("Failed to draw circle")?;
+
+        // 3. 画一条线
+        opencv::imgproc::line(
+            &mut mat,
+            opencv::core::Point::new(0, 0),
+            opencv::core::Point::new(width - 1, height - 1),
+            opencv::core::Scalar::new(255.0, 0.0, 0.0, 0.0), // 蓝色
+            2,                                               // 线宽
+            opencv::imgproc::LINE_8,
+            0,
+        )
+        .context("Failed to draw line")?;
+
+        Ok(mat)
+    }
+
+    #[test]
+    fn test_mat_to_image() -> Result<()> {
+        let mat = create_test_mat()?;
+
+        let img = mat_to_image(&mat)?;
+
+        assert_eq!(img.width(), mat.cols() as u32);
+        assert_eq!(img.height(), mat.rows() as u32);
+
+        img.save("/tmp/test_mat_to_image.png")
+            .expect("mat_to_image error");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_image_to_mat() -> Result<()> {
+        let img = create_rgb_image();
+
+        let mat = image_to_mat(&img)?;
+
+        assert_eq!(mat.cols(), img.width() as i32);
+        assert_eq!(mat.rows(), img.height() as i32);
+        assert_eq!(mat.channels(), 3);
+
+        println!("test_image_to_mat depth:{}", mat.depth());
 
         Ok(())
     }
