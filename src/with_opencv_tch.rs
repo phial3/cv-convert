@@ -490,7 +490,7 @@ mod tests {
             let mat: Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?
                 .try_into_cv()?;
             let after = OpenCvMatAsTchTensor::try_from_cv(&mat)?; // in hwc
-            println!("after={:?}", after.size());
+
             // compare original and recovered Tensor values
             {
                 anyhow::ensure!(after.size() == [height, width, channel], "size mismatch",);

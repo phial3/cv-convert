@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
 use rsmpeg::swscale::SwsContext;
@@ -90,7 +90,7 @@ pub fn convert_avframe(
         None,
         None,
     )
-    .expect("Failed to create a swscale context.");
+    .context("Failed to create a swscale context.")?;
 
     // 创建目标缓冲区
     let mut dst_frame = AVFrame::new();
@@ -100,11 +100,19 @@ pub fn convert_avframe(
     dst_frame.set_pts(src_frame.pts);
     dst_frame.set_time_base(src_frame.time_base);
     dst_frame.set_pict_type(src_frame.pict_type);
-    dst_frame.alloc_buffer()?;
+    dst_frame.set_ch_layout(src_frame.ch_layout);
+    dst_frame.set_nb_samples(src_frame.nb_samples);
+    dst_frame.set_sample_rate(src_frame.sample_rate);
+    dst_frame
+        .alloc_buffer()
+        .context("Failed to allocate the buffer for the frame.")?;
 
     sws_ctx
         .scale_frame(src_frame, 0, src_frame.height, &mut dst_frame)
-        .unwrap();
+        .context(format!(
+            "Failed to scale frame from [pix:{}, size:{}x{}] to [pix:{}, size:{}x{}]",
+            src_frame.format, src_frame.width, src_frame.height, dst_pix_fmt, dst_width, dst_height
+        ))?;
 
     Ok(dst_frame)
 }

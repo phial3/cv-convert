@@ -1014,8 +1014,17 @@ mod tests {
                     let src = rgb8_img[[h, w, c]];
                     let dst = back_to_rgb[[h, w, c]];
                     let diff = (src as i32 - dst as i32).abs();
-                    println!("rgb8_img:{}, back_to_rgb:{}, diff:{}", src, dst, diff);
-                    assert!(diff <= 3);
+
+                    assert!(
+                        diff <= 3,
+                        "too mush difference at position [{}, {}, {}], src:{}, dst:{}, diff:{}",
+                        h,
+                        w,
+                        c,
+                        src,
+                        dst,
+                        diff
+                    );
                 }
             }
         }
