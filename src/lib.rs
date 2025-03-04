@@ -209,6 +209,8 @@ mod common;
 mod macros;
 use macros::*;
 
+pub mod pixel;
+
 pub mod traits;
 pub use traits::*;
 

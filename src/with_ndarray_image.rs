@@ -1,4 +1,4 @@
-use crate::with_ndarray::{ArrayWithFormat, AvFramePixel, AvPixelFormat, PixelType};
+use crate::with_ndarray::{AVFramePixel, ArrayWithFormat, PixelType};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use image::{GrayImage, ImageBuffer, Luma, Rgb, RgbImage, Rgba, RgbaImage};

@@ -33,10 +33,20 @@ test-tch = ["tch/download-libtorch"]
 rand = '0.9'
 approx = '0.5'
 itertools = '0.14'
+rgb = "0.8"
+yuv = "0.1"
+pix = "0.13"
+coolor = "1.0"
+imgref = "1.11"
+palette = "0.7"
+yuvutils-rs = "0.8"
+resize = "0.8"
 
 [dependencies]
 half = '2.4'
 anyhow = '1.0'
+strum = "0.27"
+strum_macros = "0.27"
 num-traits = '0.2'
 image = { version = '0.25', default-features = true, optional = true }
 nalgebra = { version = '0.33', default-features = true, optional = true }

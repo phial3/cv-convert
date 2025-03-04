@@ -1,4 +1,5 @@
-use crate::with_ndarray::{ArrayWithFormat, AvFramePixel, AvPixelFormat, PixelType};
+use crate::pixel::Pixel;
+use crate::with_ndarray::{AVFramePixel, ArrayWithFormat, PixelType};
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use ndarray::Array3;
@@ -25,22 +26,17 @@ impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
             .unwrap();
 
         match pix_fmt {
-            AvPixelFormat::RGB4
-            | AvPixelFormat::RGB8
-            | AvPixelFormat::RGB24
-            | AvPixelFormat::BGR4
-            | AvPixelFormat::BGR8
-            | AvPixelFormat::BGR24 => avframe_rgb_to_array(frame, pix_fmt.bits_per_pixel()),
-            AvPixelFormat::RGBA | AvPixelFormat::BGRA => {
-                avframe_rgba_to_array(frame, pix_fmt.bits_per_pixel())
+            Pixel::RGB4 | Pixel::RGB8 | Pixel::RGB24 | Pixel::BGR4 | Pixel::BGR8 | Pixel::BGR24 => {
+                avframe_rgb_to_array(frame, pix_fmt.bits_per_pixel())
             }
-            AvPixelFormat::GRAY8 => avframe_gray_to_array(frame, pix_fmt.bits_per_pixel()),
-            AvPixelFormat::YUV410P
-            | AvPixelFormat::YUV411P
-            | AvPixelFormat::YUV420P
-            | AvPixelFormat::YUV422P
-            | AvPixelFormat::YUV440P
-            | AvPixelFormat::YUV444P => {
+            Pixel::RGBA | Pixel::BGRA => avframe_rgba_to_array(frame, pix_fmt.bits_per_pixel()),
+            Pixel::GRAY8 => avframe_gray_to_array(frame, pix_fmt.bits_per_pixel()),
+            Pixel::YUV410P
+            | Pixel::YUV411P
+            | Pixel::YUV420P
+            | Pixel::YUV422P
+            | Pixel::YUV440P
+            | Pixel::YUV444P => {
                 let (params, _dimensions) = pix_fmt.yuv_params().unwrap();
                 avframe_yuv_to_array(frame, params.subsample_x, params.subsample_y)
             }
@@ -62,7 +58,7 @@ impl<T: PixelType> TryFromCv<AVFrame> for Array3<T> {
 }
 
 // Array3 -> AVFrame
-impl<T: PixelType, F: AvFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame {
+impl<T: PixelType, F: AVFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame {
     type Error = Error;
 
     fn try_from_cv(arr_with_fmt: ArrayWithFormat<T, F>) -> Result<Self, Self::Error> {
@@ -71,25 +67,25 @@ impl<T: PixelType, F: AvFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame
         let pix_fmt = format.pix_fmt();
 
         match pix_fmt {
-            f if f == AvPixelFormat::RGB4.pix_fmt()
-                || f == AvPixelFormat::RGB8.pix_fmt()
-                || f == AvPixelFormat::RGB24.pix_fmt()
-                || f == AvPixelFormat::BGR4.pix_fmt()
-                || f == AvPixelFormat::BGR8.pix_fmt()
-                || f == AvPixelFormat::BGR24.pix_fmt() =>
+            f if f == Pixel::RGB4.pix_fmt()
+                || f == Pixel::RGB8.pix_fmt()
+                || f == Pixel::RGB24.pix_fmt()
+                || f == Pixel::BGR4.pix_fmt()
+                || f == Pixel::BGR8.pix_fmt()
+                || f == Pixel::BGR24.pix_fmt() =>
             {
                 array_rgb_to_avframe(&array, format)
             }
-            f if f == AvPixelFormat::RGBA.pix_fmt() || f == AvPixelFormat::BGRA.pix_fmt() => {
+            f if f == Pixel::RGBA.pix_fmt() || f == Pixel::BGRA.pix_fmt() => {
                 array_rgba_to_avframe(&array, format)
             }
-            f if f == AvPixelFormat::GRAY8.pix_fmt() => array_gray_to_avframe(&array, format),
-            f if f == AvPixelFormat::YUV410P.pix_fmt()
-                || f == AvPixelFormat::YUV411P.pix_fmt()
-                || f == AvPixelFormat::YUV420P.pix_fmt()
-                || f == AvPixelFormat::YUV422P.pix_fmt()
-                || f == AvPixelFormat::YUV440P.pix_fmt()
-                || f == AvPixelFormat::YUV444P.pix_fmt() =>
+            f if f == Pixel::GRAY8.pix_fmt() => array_gray_to_avframe(&array, format),
+            f if f == Pixel::YUV410P.pix_fmt()
+                || f == Pixel::YUV411P.pix_fmt()
+                || f == Pixel::YUV420P.pix_fmt()
+                || f == Pixel::YUV422P.pix_fmt()
+                || f == Pixel::YUV440P.pix_fmt()
+                || f == Pixel::YUV444P.pix_fmt() =>
             {
                 array_yuv_to_avframe(&array, format)
             }
@@ -99,31 +95,31 @@ impl<T: PixelType, F: AvFramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame
     }
 }
 
-fn get_pixel_format(format: i32) -> Result<AvPixelFormat> {
+fn get_pixel_format(format: i32) -> Result<Pixel> {
     match format {
         // RGB
-        ffi::AV_PIX_FMT_RGB4 => Ok(AvPixelFormat::RGB4),
-        ffi::AV_PIX_FMT_RGB8 => Ok(AvPixelFormat::RGB8),
-        ffi::AV_PIX_FMT_RGB24 => Ok(AvPixelFormat::RGB24),
+        ffi::AV_PIX_FMT_RGB4 => Ok(Pixel::RGB4),
+        ffi::AV_PIX_FMT_RGB8 => Ok(Pixel::RGB8),
+        ffi::AV_PIX_FMT_RGB24 => Ok(Pixel::RGB24),
         // ffi::AV_PIX_FMT_RGB32 => Ok(PixelFormat::RGB32), // RGB32 == BGRA : 28
         // BGR
-        ffi::AV_PIX_FMT_BGR4 => Ok(AvPixelFormat::BGR4),
-        ffi::AV_PIX_FMT_BGR8 => Ok(AvPixelFormat::BGR8),
-        ffi::AV_PIX_FMT_BGR24 => Ok(AvPixelFormat::BGR24),
+        ffi::AV_PIX_FMT_BGR4 => Ok(Pixel::BGR4),
+        ffi::AV_PIX_FMT_BGR8 => Ok(Pixel::BGR8),
+        ffi::AV_PIX_FMT_BGR24 => Ok(Pixel::BGR24),
         // ffi::AV_PIX_FMT_BGR32 => Ok(PixelFormat::BGR32), // BGR32 == RGBA : 26
         // RGBA/BGRA
-        ffi::AV_PIX_FMT_RGBA => Ok(AvPixelFormat::RGBA),
-        ffi::AV_PIX_FMT_BGRA => Ok(AvPixelFormat::BGRA),
+        ffi::AV_PIX_FMT_RGBA => Ok(Pixel::RGBA),
+        ffi::AV_PIX_FMT_BGRA => Ok(Pixel::BGRA),
         // Gray
-        ffi::AV_PIX_FMT_GRAY8 => Ok(AvPixelFormat::GRAY8),
+        ffi::AV_PIX_FMT_GRAY8 => Ok(Pixel::GRAY8),
         // YUV
-        ffi::AV_PIX_FMT_YUV410P => Ok(AvPixelFormat::YUV410P),
-        ffi::AV_PIX_FMT_YUV411P => Ok(AvPixelFormat::YUV411P),
-        ffi::AV_PIX_FMT_YUV420P => Ok(AvPixelFormat::YUV420P),
-        ffi::AV_PIX_FMT_YUV422P => Ok(AvPixelFormat::YUV422P),
-        ffi::AV_PIX_FMT_YUV440P => Ok(AvPixelFormat::YUV440P),
-        ffi::AV_PIX_FMT_YUV444P => Ok(AvPixelFormat::YUV444P),
-        ffi::AV_PIX_FMT_YUYV422 => Ok(AvPixelFormat::YUYV422),
+        ffi::AV_PIX_FMT_YUV410P => Ok(Pixel::YUV410P),
+        ffi::AV_PIX_FMT_YUV411P => Ok(Pixel::YUV411P),
+        ffi::AV_PIX_FMT_YUV420P => Ok(Pixel::YUV420P),
+        ffi::AV_PIX_FMT_YUV422P => Ok(Pixel::YUV422P),
+        ffi::AV_PIX_FMT_YUV440P => Ok(Pixel::YUV440P),
+        ffi::AV_PIX_FMT_YUV444P => Ok(Pixel::YUV444P),
+        ffi::AV_PIX_FMT_YUYV422 => Ok(Pixel::YUYV422),
         // 不支持的格式返回错误
         _ => Err(Error::msg(format!("Unsupported pixel format: {}", format))),
     }
@@ -251,7 +247,7 @@ fn avframe_yuv_to_array<T: PixelType>(
 
 ///////////////////////////////////////////////////
 
-fn array_rgb_to_avframe<T: PixelType, F: AvFramePixel>(
+fn array_rgb_to_avframe<T: PixelType, F: AVFramePixel>(
     array: &Array3<T>,
     format: F,
 ) -> Result<AVFrame> {
@@ -282,7 +278,7 @@ fn array_rgb_to_avframe<T: PixelType, F: AvFramePixel>(
     Ok(frame)
 }
 
-fn array_rgba_to_avframe<T: PixelType, F: AvFramePixel>(
+fn array_rgba_to_avframe<T: PixelType, F: AVFramePixel>(
     array: &Array3<T>,
     format: F,
 ) -> Result<AVFrame> {
@@ -313,7 +309,7 @@ fn array_rgba_to_avframe<T: PixelType, F: AvFramePixel>(
     Ok(frame)
 }
 
-fn array_gray_to_avframe<T: PixelType, F: AvFramePixel>(
+fn array_gray_to_avframe<T: PixelType, F: AVFramePixel>(
     array: &Array3<T>,
     format: F,
 ) -> Result<AVFrame> {
@@ -342,7 +338,7 @@ fn array_gray_to_avframe<T: PixelType, F: AvFramePixel>(
     Ok(frame)
 }
 
-fn array_yuv_to_avframe<T: PixelType, F: AvFramePixel>(
+fn array_yuv_to_avframe<T: PixelType, F: AVFramePixel>(
     array: &Array3<T>,
     format: F,
 ) -> Result<AVFrame> {
@@ -404,7 +400,7 @@ mod tests {
     fn create_test_frame(
         width: i32,
         height: i32,
-        format: AvPixelFormat,
+        format: Pixel,
         pattern: Box<dyn Fn(i32, i32, i32) -> u8>,
     ) -> Result<AVFrame> {
         // 创建并初始化帧
@@ -416,10 +412,7 @@ mod tests {
 
         match format {
             // 打包格式处理 (RGB, BGR, RGBA, BGRA)
-            AvPixelFormat::RGB24
-            | AvPixelFormat::BGR24
-            | AvPixelFormat::RGBA
-            | AvPixelFormat::BGRA => {
+            Pixel::RGB24 | Pixel::BGR24 | Pixel::RGBA | Pixel::BGRA => {
                 let channels = format.channels();
                 let stride = frame.linesize[0] as usize;
                 let data = unsafe {
@@ -428,10 +421,10 @@ mod tests {
 
                 // 处理颜色通道顺序
                 let channel_map: Vec<usize> = match format {
-                    AvPixelFormat::BGR24 => vec![2, 1, 0],
-                    AvPixelFormat::BGRA => vec![2, 1, 0, 3],
-                    AvPixelFormat::RGB24 => vec![0, 1, 2],
-                    AvPixelFormat::RGBA => vec![0, 1, 2, 3],
+                    Pixel::BGR24 => vec![2, 1, 0],
+                    Pixel::BGRA => vec![2, 1, 0, 3],
+                    Pixel::RGB24 => vec![0, 1, 2],
+                    Pixel::RGBA => vec![0, 1, 2, 3],
                     _ => unreachable!(),
                 };
 
@@ -447,7 +440,7 @@ mod tests {
             }
 
             // 单通道格式处理
-            AvPixelFormat::GRAY8 => {
+            Pixel::GRAY8 => {
                 let stride = frame.linesize[0] as usize;
                 let data = unsafe {
                     std::slice::from_raw_parts_mut(frame.data[0], (height as usize) * stride)
@@ -461,12 +454,12 @@ mod tests {
             }
 
             // YUV 平面格式处理
-            AvPixelFormat::YUV420P
-            | AvPixelFormat::YUV422P
-            | AvPixelFormat::YUV444P
-            | AvPixelFormat::YUV410P
-            | AvPixelFormat::YUV411P
-            | AvPixelFormat::YUV440P => {
+            Pixel::YUV420P
+            | Pixel::YUV422P
+            | Pixel::YUV444P
+            | Pixel::YUV410P
+            | Pixel::YUV411P
+            | Pixel::YUV440P => {
                 // 获取子采样参数
                 let (params, _dimensions) = format.yuv_params().unwrap();
                 let (subsample_x, subsample_y) = (params.subsample_x, params.subsample_y);
@@ -514,7 +507,7 @@ mod tests {
             }
 
             // 打包YUV格式
-            AvPixelFormat::YUYV422 => {
+            Pixel::YUYV422 => {
                 let stride = frame.linesize[0] as usize;
                 let data = unsafe {
                     std::slice::from_raw_parts_mut(frame.data[0], (height as usize) * stride)
@@ -553,7 +546,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::RGB24,
+            Pixel::RGB24,
             Box::new(|x, y, c| ((x + y + c) % 256) as u8),
         )?;
 
@@ -586,7 +579,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::RGBA,
+            Pixel::RGBA,
             Box::new(|x, y, c| ((x + y + c) % 256) as u8),
         )?;
 
@@ -616,7 +609,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::GRAY8,
+            Pixel::GRAY8,
             Box::new(|x, y, _| ((x + y) % 256) as u8),
         )?;
 
@@ -641,7 +634,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::YUV420P,
+            Pixel::YUV420P,
             Box::new(|x, y, c| ((x + y + c * 50) % 256) as u8),
         )?;
 
@@ -704,7 +697,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::RGB24,
+            Pixel::RGB24,
             Box::new(|x, y, c| ((x + y + c) % 256) as u8),
         )?;
 
@@ -727,7 +720,7 @@ mod tests {
         let frame = create_test_frame(
             width,
             height,
-            AvPixelFormat::RGB24,
+            Pixel::RGB24,
             Box::new(|x, y, c| ((x + y + c) % 256) as u8),
         )?;
 
@@ -735,7 +728,7 @@ mod tests {
         let rgb_arr = Array3::<u8>::try_from_cv(&frame)?;
         assert_eq!(rgb_arr.dim(), (height as usize, width as usize, 3));
 
-        let frame = AVFrame::try_from_cv(rgb_arr.with_format(AvPixelFormat::RGB24))?;
+        let frame = AVFrame::try_from_cv(rgb_arr.with_format(Pixel::RGB24))?;
         assert_eq!(frame.width, width);
         assert_eq!(frame.height, height);
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
@@ -757,15 +750,11 @@ mod tests {
     }
 
     /// 验证 AVFrame 中的数据是否正确
-    fn verify_frame_data(
-        frame: &AVFrame,
-        expected: &Array3<u8>,
-        format: AvPixelFormat,
-    ) -> Result<()> {
+    fn verify_frame_data(frame: &AVFrame, expected: &Array3<u8>, format: Pixel) -> Result<()> {
         unsafe {
             let frame_ptr = frame.as_ptr();
             match format {
-                AvPixelFormat::RGB24 | AvPixelFormat::BGR24 => {
+                Pixel::RGB24 | Pixel::BGR24 => {
                     let channels = 3;
                     let line_size = (*frame_ptr).linesize[0] as usize;
                     let data_ptr = (*frame_ptr).data[0];
@@ -785,7 +774,7 @@ mod tests {
                         }
                     }
                 }
-                AvPixelFormat::YUV420P => {
+                Pixel::YUV420P => {
                     let y_line_size = (*frame_ptr).linesize[0] as usize;
                     let u_line_size = (*frame_ptr).linesize[1] as usize;
                     let v_line_size = (*frame_ptr).linesize[2] as usize;
@@ -843,10 +832,10 @@ mod tests {
         let array = create_test_rgb_data(height, width, channels);
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(AvPixelFormat::RGB24))?;
+        let frame = AVFrame::try_from_cv(array.clone().with_format(Pixel::RGB24))?;
 
         // 验证转换结果
-        verify_frame_data(&frame, &array, AvPixelFormat::RGB24)?;
+        verify_frame_data(&frame, &array, Pixel::RGB24)?;
 
         // AVFrame -> Array3
         let array_back: Array3<u8> = Array3::try_from_cv(&frame)?;
@@ -890,7 +879,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(AvPixelFormat::YUV420P))?;
+        let frame = AVFrame::try_from_cv(array.clone().with_format(Pixel::YUV420P))?;
 
         // 验证 YUV 值
         unsafe {
@@ -1012,7 +1001,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(AvPixelFormat::GRAY8))?;
+        let frame = AVFrame::try_from_cv(array.clone().with_format(Pixel::GRAY8))?;
 
         // 验证数据
         unsafe {
@@ -1057,7 +1046,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(AvPixelFormat::RGBA))?;
+        let frame = AVFrame::try_from_cv(array.clone().with_format(Pixel::RGBA))?;
 
         // 验证转换结果
         unsafe {
