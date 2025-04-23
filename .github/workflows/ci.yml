@@ -46,13 +46,6 @@ jobs:
             python3 \
             python3-pip \
             python3-dev \
-            libavcodec-dev \
-            libavdevice-dev \
-            libavfilter-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libswscale-dev \
             libopencv-dev \
             python3-opencv
 
@@ -113,7 +106,7 @@ jobs:
         run: cargo build --all-features --verbose
 
       - name: Run Test
-        run: cargo test --verbose -- --nocapture
+        run: cargo test --all --all-features --verbose -- --nocapture
 
   build-windows:
     name: build / windows / latest ffmpeg
@@ -180,13 +173,6 @@ jobs:
             python3 \
             python3-pip \
             python3-dev \
-            libavcodec-dev \
-            libavdevice-dev \
-            libavfilter-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libswscale-dev \
             libopencv-dev \
             python3-opencv
 
