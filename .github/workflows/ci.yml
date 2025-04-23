@@ -106,7 +106,7 @@ jobs:
         run: cargo build --all-features --verbose
 
       - name: Run Test
-        run: cargo test --verbose -- --nocapture
+        run: cargo test --all --all-features --verbose -- --nocapture
 
   build-windows:
     name: build / windows / latest ffmpeg

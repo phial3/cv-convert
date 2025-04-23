@@ -1,4 +1,4 @@
-use crate::pixel::Pixel;
+use crate::pixel::PixelFormat;
 use anyhow::{Error, Result};
 use ndarray::Array3;
 use num_traits::{NumCast, Zero};
@@ -17,7 +17,7 @@ mod pix_fmt {
     impl PixelType for f32 {}
     impl PixelType for f64 {}
 
-    pub trait AVFramePixel: Sized + Clone + Debug {
+    pub trait FramePixel: Sized + Clone + Debug {
         /// 获取像素格式
         fn pix_fmt(&self) -> i32;
         /// 获取通道数
@@ -42,7 +42,7 @@ mod pix_fmt {
         pub height: usize, // UV平面实际高度
     }
 
-    impl AVFramePixel for Pixel {
+    impl FramePixel for PixelFormat {
         fn pix_fmt(&self) -> i32 {
             match self {
                 Self::RGB4 => 21,
@@ -270,31 +270,28 @@ mod pix_fmt {
 /// 为 Array3 添加像素格式标记的扩展 trait
 pub use array_ext::*;
 mod array_ext {
-    use super::{AVFramePixel, PixelType};
+    use super::{FramePixel, PixelType};
     use ndarray::Array3;
 
     // 为Array3 添加像素格式标记的扩展 trait
     pub trait ArrayExt<T: PixelType> {
-        fn with_format<F: AVFramePixel>(self, format: F) -> ArrayWithFormat<T, F>;
+        fn with_format<F: FramePixel>(self, pixel: F) -> ArrayWithFormat<T, F>;
     }
 
     // 为所有满足 PixelType 的类型 T 实现 ArrayExt
     impl<T: PixelType> ArrayExt<T> for Array3<T> {
-        fn with_format<F: AVFramePixel>(self, format: F) -> ArrayWithFormat<T, F> {
-            ArrayWithFormat {
-                array: self,
-                format,
-            }
+        fn with_format<F: FramePixel>(self, pixel: F) -> ArrayWithFormat<T, F> {
+            ArrayWithFormat { array: self, pixel }
         }
     }
 
-    // 包装Array3，携带像素格式信息
-    pub struct ArrayWithFormat<T: PixelType, F: AVFramePixel> {
+    /// 包装Array3，携带像素格式信息
+    pub struct ArrayWithFormat<T: PixelType, F: FramePixel> {
         pub array: Array3<T>,
-        pub format: F,
+        pub pixel: F,
     }
 
-    impl<T: PixelType, F: AVFramePixel> ArrayWithFormat<T, F> {
+    impl<T: PixelType, F: FramePixel> ArrayWithFormat<T, F> {
         pub fn into_inner(self) -> Array3<T> {
             self.array
         }
@@ -494,8 +491,8 @@ pub fn xyz_to_rgb(x: f64, y: f64, z: f64) -> (f64, f64, f64) {
 /// Convert between different pixel formats
 pub fn convert_pixel_format<T, U>(
     src: &Array3<T>,
-    src_fmt: Pixel,
-    dst_fmt: Pixel,
+    src_fmt: PixelFormat,
+    dst_fmt: PixelFormat,
 ) -> Result<Array3<U>>
 where
     T: Copy + Clone + NumCast + Zero,
@@ -519,7 +516,7 @@ where
     }
 
     // 执行转换
-    use Pixel::*;
+    use PixelFormat::*;
     match (src_fmt, dst_fmt) {
         // RGB to BGR
         (RGB4, BGR4) |
@@ -688,7 +685,7 @@ where
 }
 
 /// RGB to GRAY
-fn rgb_to_gray8<T, U>(src: &Array3<T>, src_format: Pixel) -> Result<Array3<U>>
+fn rgb_to_gray8<T, U>(src: &Array3<T>, src_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Copy + Clone + NumCast + Zero,
     U: Copy + Clone + NumCast + Zero,
@@ -699,7 +696,7 @@ where
     // 根据输入格式确定归一化因子
     let normalize_factor: f64 = match src_format {
         // 对于 RGB4，每个颜色通道使用 4 位表示，值范围是 0-15 (2^4 - 1 = 15)
-        Pixel::RGB4 => 15.0, // 4-bit 最大值
+        PixelFormat::RGB4 => 15.0, // 4-bit 最大值
         // RGB8/RGB24/RGB32，每个颜色通道使用 8 位表示，值范围是 0-255 (2^8 - 1 = 255)
         _ => 255.0, // 8-bit 最大值
     };
@@ -722,7 +719,7 @@ where
 }
 
 /// Convert YUV planar formats to RGB (supports both RGB8 and RGB24)
-fn ndarray_yuv_to_rgb<T, U>(src: &Array3<T>, src_format: Pixel) -> Result<Array3<U>>
+fn ndarray_yuv_to_rgb<T, U>(src: &Array3<T>, src_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
@@ -766,7 +763,7 @@ where
 }
 
 /// Convert RGB (RGB8 or RGB24) to YUV planar format
-fn ndarray_rgb_to_yuv<T, U>(src: &Array3<T>, dst_format: Pixel) -> Result<Array3<U>>
+fn ndarray_rgb_to_yuv<T, U>(src: &Array3<T>, dst_format: PixelFormat) -> Result<Array3<U>>
 where
     T: Clone + NumCast + Zero,
     U: Clone + NumCast + Zero,
@@ -893,13 +890,15 @@ mod tests {
         let rgb8_img: Array3<u8> = create_test_image(test_size.0, test_size.1, 3, "gradient");
 
         // Test RGB8 <-> BGR8
-        let result = convert_pixel_format::<u8, u8>(&rgb8_img, Pixel::RGB8, Pixel::BGR8).unwrap();
+        let result =
+            convert_pixel_format::<u8, u8>(&rgb8_img, PixelFormat::RGB8, PixelFormat::BGR8)
+                .unwrap();
 
         assert_eq!(result.dim(), (test_size.0, test_size.1, 3));
 
         // Convert back
         let back_to_rgb =
-            convert_pixel_format::<u8, u8>(&result, Pixel::BGR8, Pixel::RGB8).unwrap();
+            convert_pixel_format::<u8, u8>(&result, PixelFormat::BGR8, PixelFormat::RGB8).unwrap();
 
         assert_eq!(rgb8_img, back_to_rgb);
 
@@ -918,7 +917,8 @@ mod tests {
         let rgba_img: Array3<u8> = create_test_image(test_size.0, test_size.1, 4, "gradient");
 
         // Test RGBA -> RGB8 -> RGBA conversions
-        let rgb8 = convert_pixel_format::<u8, u8>(&rgba_img, Pixel::RGBA, Pixel::RGB8).unwrap();
+        let rgb8 = convert_pixel_format::<u8, u8>(&rgba_img, PixelFormat::RGBA, PixelFormat::RGB8)
+            .unwrap();
 
         // 验证 RGB8 转换结果的维度和RGB通道
         assert_eq!(rgb8.dim(), (test_size.0, test_size.1, 3));
@@ -930,7 +930,8 @@ mod tests {
             }
         }
 
-        let back_to_rgba = convert_pixel_format::<u8, u8>(&rgb8, Pixel::RGB8, Pixel::RGBA).unwrap();
+        let back_to_rgba =
+            convert_pixel_format::<u8, u8>(&rgb8, PixelFormat::RGB8, PixelFormat::RGBA).unwrap();
 
         // 验证 RGBA 转换结果的维度
         assert_eq!(back_to_rgba.dim(), (test_size.0, test_size.1, 4));
@@ -977,11 +978,13 @@ mod tests {
 
         // Convert RGB8 -> YUV444P
         let yuv_result =
-            convert_pixel_format::<u8, u8>(&rgb8_img, Pixel::RGB8, Pixel::YUV444P).unwrap();
+            convert_pixel_format::<u8, u8>(&rgb8_img, PixelFormat::RGB8, PixelFormat::YUV444P)
+                .unwrap();
 
         // Convert back YUV444P -> RGB8
         let back_to_rgb =
-            convert_pixel_format::<u8, u8>(&yuv_result, Pixel::YUV444P, Pixel::RGB8).unwrap();
+            convert_pixel_format::<u8, u8>(&yuv_result, PixelFormat::YUV444P, PixelFormat::RGB8)
+                .unwrap();
 
         // Check dimensions
         assert_eq!(back_to_rgb.dim(), rgb8_img.dim());
@@ -1024,10 +1027,11 @@ mod tests {
 
         // Test RGB8 -> BGR8 -> RGB8 with type conversion
         let result_u16 =
-            convert_pixel_format::<u8, u16>(&img_u8, Pixel::RGB8, Pixel::BGR8).unwrap();
+            convert_pixel_format::<u8, u16>(&img_u8, PixelFormat::RGB8, PixelFormat::BGR8).unwrap();
 
         let back_to_u8 =
-            convert_pixel_format::<u16, u8>(&result_u16, Pixel::BGR8, Pixel::RGB8).unwrap();
+            convert_pixel_format::<u16, u8>(&result_u16, PixelFormat::BGR8, PixelFormat::RGB8)
+                .unwrap();
 
         assert_eq!(img_u8, back_to_u8);
 
@@ -1046,10 +1050,12 @@ mod tests {
         let img: Array3<u8> = create_test_image(test_size.0, test_size.1, 3, "checkerboard");
 
         // Test RGB -> BGR -> RGB conversion instead
-        let bgr_result = convert_pixel_format::<u8, u8>(&img, Pixel::RGB8, Pixel::BGR8).unwrap();
+        let bgr_result =
+            convert_pixel_format::<u8, u8>(&img, PixelFormat::RGB8, PixelFormat::BGR8).unwrap();
 
         let rgb_result =
-            convert_pixel_format::<u8, u8>(&bgr_result, Pixel::BGR8, Pixel::RGB8).unwrap();
+            convert_pixel_format::<u8, u8>(&bgr_result, PixelFormat::BGR8, PixelFormat::RGB8)
+                .unwrap();
 
         assert_eq!(rgb_result.dim(), img.dim());
 
@@ -1079,7 +1085,7 @@ mod tests {
     fn test_rgb4_to_gray8_white() -> Result<()> {
         // RGB4 最大值为 15
         let rgb = create_image(2, 2, 15u8, 15u8, 15u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB4, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB4, PixelFormat::GRAY8)?;
 
         // 全白图像，转换后应该是 255
         assert_eq!(gray[[0, 0, 0]], 255);
@@ -1091,7 +1097,7 @@ mod tests {
     fn test_rgb4_to_gray8_black() -> Result<()> {
         // RGB4 最小值为 0
         let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB4, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB4, PixelFormat::GRAY8)?;
 
         // 全黑图像，转换后应该是 0
         assert_eq!(gray[[0, 0, 0]], 0);
@@ -1103,7 +1109,7 @@ mod tests {
     fn test_rgb8_to_gray8_white() -> Result<()> {
         // RGB8 最大值为 255
         let rgb = create_image(2, 2, 255u8, 255u8, 255u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 全白图像，转换后应该是 255
         assert_eq!(gray[[0, 0, 0]], 255);
@@ -1115,7 +1121,7 @@ mod tests {
     fn test_rgb8_to_gray8_black() -> Result<()> {
         // RGB8 最小值为 0
         let rgb = create_image(2, 2, 0u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 全黑图像，转换后应该是 0
         assert_eq!(gray[[0, 0, 0]], 0);
@@ -1127,7 +1133,7 @@ mod tests {
     fn test_rgb8_to_gray8_red() -> Result<()> {
         // 纯红色图像
         let rgb = create_image(2, 2, 255u8, 0u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // R 权重为 0.2126，因此灰度值应该约为 54
         assert_eq!(gray[[0, 0, 0]], 54);
@@ -1139,7 +1145,7 @@ mod tests {
     fn test_rgb8_to_gray8_green() -> Result<()> {
         // 纯绿色图像
         let rgb = create_image(2, 2, 0u8, 255u8, 0u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // G 权重为 0.7152，因此灰度值应该约为 182
         assert_eq!(gray[[0, 0, 0]], 182);
@@ -1151,7 +1157,7 @@ mod tests {
     fn test_rgb8_to_gray8_blue() -> Result<()> {
         // 纯蓝色图像
         let rgb = create_image(2, 2, 0u8, 0u8, 255u8);
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // B 权重为 0.0722，因此灰度值应该约为 18
         assert_eq!(gray[[0, 0, 0]], 18);
@@ -1167,7 +1173,7 @@ mod tests {
         rgb[[0, 0, 1]] = 128; // G
         rgb[[0, 0, 2]] = 64; // B
 
-        let gray = convert_pixel_format::<u8, u8>(&rgb, Pixel::RGB8, Pixel::GRAY8)?;
+        let gray = convert_pixel_format::<u8, u8>(&rgb, PixelFormat::RGB8, PixelFormat::GRAY8)?;
 
         // 计算期望的灰度值：
         // 255 * 0.2126 + 128 * 0.7152 + 64 * 0.0722 ≈ 150

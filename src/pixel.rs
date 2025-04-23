@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumString};
 #[strum(serialize_all = "UPPERCASE")]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
-pub enum Pixel {
+pub enum PixelFormat {
     None,
 
     YUV420P,
