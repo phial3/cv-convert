@@ -34,16 +34,15 @@ rand = '0.9'
 approx = '0.5'
 itertools = '0.14'
 rgb = "0.8"
-yuv = "0.1"
-pix = "0.13"
+pix = "0.14"
 coolor = "1.0"
 imgref = "1.11"
 palette = "0.7"
 yuvutils-rs = "0.8"
-resize = "0.8"
+fast_image_resize = "5.1"
 
 [dependencies]
-half = '2.4'
+half = '2.6'
 anyhow = '1.0'
 strum = "0.27"
 strum_macros = "0.27"
@@ -54,6 +53,6 @@ ndarray = { version = '0.16', default-features = true, optional = true }
 imageproc = { version = '0.25', default-features = true, optional = true }
 tch = { version = '0.18', default-features = true, optional = true}
 opencv = { version = '0.94', default-features = true, optional = true, features = ["clang-runtime"] }
-rsmpeg = { git = "https://github.com/larksuite/rsmpeg", branch = "master", optional = true, features = [
+rsmpeg = { git = "https://github.com/phial3/rsmpeg", branch = "light", optional = true, features = [
     "ffmpeg7", "link_system_ffmpeg"
 ] }

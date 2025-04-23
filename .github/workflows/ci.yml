@@ -46,13 +46,6 @@ jobs:
             python3 \
             python3-pip \
             python3-dev \
-            libavcodec-dev \
-            libavdevice-dev \
-            libavfilter-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libswscale-dev \
             libopencv-dev \
             python3-opencv
 
@@ -180,13 +173,6 @@ jobs:
             python3 \
             python3-pip \
             python3-dev \
-            libavcodec-dev \
-            libavdevice-dev \
-            libavfilter-dev \
-            libavformat-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libswscale-dev \
             libopencv-dev \
             python3-opencv
 
