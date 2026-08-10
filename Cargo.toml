@@ -30,29 +30,29 @@ full = ["tch", "rsmpeg", "opencv"]
 test-tch = ["tch/download-libtorch"]
 
 [dev-dependencies]
-rand = '0.9'
+rand = '0.10'
 approx = '0.5'
-itertools = '0.14'
+itertools = '0.15'
 rgb = "0.8"
-pix = "0.14"
+pix = "1.0"
 coolor = "1.0"
 imgref = "1.11"
 palette = "0.7"
 yuvutils-rs = "0.8"
-fast_image_resize = "5.1"
+fast_image_resize = "6.1"
 
 [dependencies]
 half = '2.6'
 anyhow = '1.0'
-strum = "0.27"
-strum_macros = "0.27"
+strum = "0.28"
+strum_macros = "0.28"
 num-traits = '0.2'
 image = { version = '0.25', default-features = true, optional = true }
-nalgebra = { version = '0.33', default-features = true, optional = true }
-ndarray = { version = '0.16', default-features = true, optional = true }
-imageproc = { version = '0.25', default-features = true, optional = true }
-tch = { version = '0.18', default-features = true, optional = true}
-opencv = { version = '0.94', default-features = true, optional = true, features = ["clang-runtime"] }
-rsmpeg = { git = "https://github.com/phial3/rsmpeg", branch = "light", optional = true, features = [
-    "ffmpeg7", "link_system_ffmpeg"
+nalgebra = { version = '0.35', default-features = true, optional = true }
+ndarray = { version = '0.17', default-features = true, optional = true }
+imageproc = { version = '0.27', default-features = true, optional = true }
+tch = { version = '0.24', default-features = true, optional = true}
+opencv = { version = '0.100', default-features = true, optional = true, features = ["clang-runtime"] }
+rsmpeg = { git = "https://gitee.com/phial3/rsmpeg", branch = "dev", optional = true, features = [
+    "ffmpeg8_1", "link_system_ffmpeg"
 ] }

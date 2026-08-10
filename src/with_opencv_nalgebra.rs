@@ -1,7 +1,6 @@
 use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
 use anyhow::{Error, Result};
 use nalgebra::geometry;
-use opencv::calib3d;
 use opencv::core as cv_core;
 use opencv::prelude::*;
 
@@ -33,7 +32,7 @@ impl TryFromCv<&OpenCvPose<&cv_core::Point3d>> for geometry::Isometry3<f64> {
                 Mat::from_slice(&[x, y, z])?.try_clone()?
             };
             let mut rotation_mat = Mat::zeros(3, 3, cv_core::CV_64FC1)?.to_mat()?;
-            calib3d::rodrigues(&rvec_mat, &mut rotation_mat, &mut cv_core::no_array())?;
+            opencv::geometry::rodrigues(&rvec_mat, &mut rotation_mat, &mut cv_core::no_array())?;
             let rotation_matrix: nalgebra::Matrix3<f64> = TryFromCv::try_from_cv(rotation_mat)?;
             geometry::UnitQuaternion::from_matrix(&rotation_matrix)
         };
@@ -122,7 +121,7 @@ where
         let rvec = {
             let rotation_mat = Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = Mat::zeros(3, 1, cv_core::CV_64FC1)?.to_mat()?;
-            calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
+            opencv::geometry::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
             cv_core::Point3_::new(
                 *rvec_mat.at_2d::<T>(0, 0)?,
                 *rvec_mat.at_2d::<T>(1, 0)?,
@@ -160,7 +159,7 @@ impl TryFromCv<&geometry::Isometry3<f64>> for OpenCvPose<Mat> {
             let rotation_mat: Mat =
                 TryFromCv::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = Mat::zeros(3, 1, cv_core::CV_64FC1)?.to_mat()?;
-            calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
+            opencv::geometry::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
             rvec_mat
         };
         let tvec = Mat::from_slice(&[translation.x, translation.y, translation.z])?.try_clone()?;
@@ -189,7 +188,7 @@ impl TryFromCv<&geometry::Isometry3<f32>> for OpenCvPose<Mat> {
         let rvec = {
             let rotation_mat = Mat::try_from_cv(rotation.to_rotation_matrix().into_inner())?;
             let mut rvec_mat = Mat::zeros(3, 1, cv_core::CV_32FC1)?.to_mat()?;
-            calib3d::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
+            opencv::geometry::rodrigues(&rotation_mat, &mut rvec_mat, &mut cv_core::no_array())?;
             rvec_mat
         };
         let tvec = Mat::from_slice(&[translation.x, translation.y, translation.z])?
