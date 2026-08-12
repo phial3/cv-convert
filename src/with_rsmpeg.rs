@@ -116,3 +116,79 @@ pub fn convert_avframe(
 
     Ok(dst_frame)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rsmpeg::avutil::AVFrame;
+
+    fn make_gray_frame(width: i32, height: i32, val: u8) -> AVFrame {
+        let mut frame = AVFrame::new();
+        frame.set_width(width);
+        frame.set_height(height);
+        frame.set_format(ffi::AV_PIX_FMT_GRAY8);
+        frame.alloc_buffer().unwrap();
+
+        let linesize = frame.linesize[0] as usize;
+        for y in 0..height as usize {
+            let row = unsafe {
+                std::slice::from_raw_parts_mut(frame.data[0].add(y * linesize), width as usize)
+            };
+            row.fill(val);
+        }
+        frame
+    }
+
+    #[test]
+    fn convert_gray_to_gray() {
+        let src = make_gray_frame(4, 3, 100);
+        let dst = convert_avframe(&src, 4, 3, ffi::AV_PIX_FMT_GRAY8).unwrap();
+        assert_eq!(dst.width, 4);
+        assert_eq!(dst.height, 3);
+        assert_eq!(dst.format, ffi::AV_PIX_FMT_GRAY8);
+
+        let linesize = dst.linesize[0] as usize;
+        let data =
+            unsafe { std::slice::from_raw_parts(dst.data[0], linesize * dst.height as usize) };
+        for y in 0..dst.height as usize {
+            for x in 0..dst.width as usize {
+                assert_eq!(data[y * linesize + x], 100);
+            }
+        }
+    }
+
+    #[test]
+    fn convert_yuv420p_to_rgb24() {
+        // 构造一个 2x2 YUV420P（全白：Y=235, U=V=128），手动设置数据指针与 linesize
+        let mut src = AVFrame::new();
+        src.set_width(2);
+        src.set_height(2);
+        src.set_format(ffi::AV_PIX_FMT_YUV420P);
+
+        unsafe {
+            let mut_frame = src.as_mut_ptr();
+            let y_ptr = Box::new(vec![235u8; 4]);
+            (*mut_frame).data[0] = Box::leak(y_ptr).as_mut_ptr();
+            (*mut_frame).linesize[0] = 2;
+            let u_ptr = Box::new(vec![128u8; 1]);
+            (*mut_frame).data[1] = Box::leak(u_ptr).as_mut_ptr();
+            (*mut_frame).linesize[1] = 1;
+            let v_ptr = Box::new(vec![128u8; 1]);
+            (*mut_frame).data[2] = Box::leak(v_ptr).as_mut_ptr();
+            (*mut_frame).linesize[2] = 1;
+        }
+
+        let dst = convert_avframe(&src, 2, 2, ffi::AV_PIX_FMT_RGB24).unwrap();
+        assert_eq!(dst.format, ffi::AV_PIX_FMT_RGB24);
+        // 全白在 RGB24 下应为 (255,255,255)（ffmpeg 有限->全范围扩展）
+        let linesize = dst.linesize[0] as usize;
+        let data =
+            unsafe { std::slice::from_raw_parts(dst.data[0], linesize * dst.height as usize) };
+        for y in 0..dst.height as usize {
+            for x in 0..dst.width as usize {
+                let pos = y * linesize + x * 3;
+                assert_eq!(&data[pos..pos + 3], &[255, 255, 255]);
+            }
+        }
+    }
+}

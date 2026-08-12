@@ -1,13 +1,14 @@
 use crate::with_rsmpeg;
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use crate::{ToCv, TryToCv};
 use anyhow::{Error, Result};
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
 
-impl TryFromCv<&AVFrame> for image::DynamicImage {
+impl TryToCv<image::DynamicImage> for AVFrame {
     type Error = Error;
 
-    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<image::DynamicImage, Self::Error> {
+        let from = self;
         let format = from.format;
         let img: image::DynamicImage = match format {
             ffi::AV_PIX_FMT_GRAY8 => avframe_to_image_buffer_gray(from),
@@ -33,39 +34,25 @@ impl TryFromCv<&AVFrame> for image::DynamicImage {
     }
 }
 
-impl TryFromCv<AVFrame> for image::DynamicImage {
-    type Error = Error;
-    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
-impl TryFromCv<&image::DynamicImage> for AVFrame {
+impl TryToCv<AVFrame> for image::DynamicImage {
     type Error = Error;
 
-    fn try_from_cv(from: &image::DynamicImage) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
         use image::DynamicImage;
-        let frame = match from {
-            DynamicImage::ImageLuma8(img) => img.try_into_cv()?,
-            // DynamicImage::ImageLumaA8(img) => img.try_into_cv()?,
-            DynamicImage::ImageRgb8(img) => img.try_into_cv()?,
-            DynamicImage::ImageRgba8(img) => img.try_into_cv()?,
-            // DynamicImage::ImageLuma16(img) => img.try_into_cv()?,
-            // DynamicImage::ImageLumaA16(img) => img.try_into_cv()?,
-            // DynamicImage::ImageRgb16(img) => img.try_into_cv()?,
-            // DynamicImage::ImageRgba16(img) => img.try_into_cv()?,
-            // DynamicImage::ImageRgb32F(img) => img.try_into_cv()?,
-            // DynamicImage::ImageRgba32F(img) => img.try_into_cv()?,
+        let frame = match self {
+            DynamicImage::ImageLuma8(img) => img.try_to_cv()?,
+            // DynamicImage::ImageLumaA8(img) => img.try_to_cv()?,
+            DynamicImage::ImageRgb8(img) => img.try_to_cv()?,
+            DynamicImage::ImageRgba8(img) => img.try_to_cv()?,
+            // DynamicImage::ImageLuma16(img) => img.try_to_cv()?,
+            // DynamicImage::ImageLumaA16(img) => img.try_to_cv()?,
+            // DynamicImage::ImageRgb16(img) => img.try_to_cv()?,
+            // DynamicImage::ImageRgba16(img) => img.try_to_cv()?,
+            // DynamicImage::ImageRgb32F(img) => img.try_to_cv()?,
+            // DynamicImage::ImageRgba32F(img) => img.try_to_cv()?,
             _ => return Err(Error::msg("Unsupported image format")),
         };
         Ok(frame)
-    }
-}
-
-impl TryFromCv<image::DynamicImage> for AVFrame {
-    type Error = Error;
-    fn try_from_cv(from: image::DynamicImage) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
     }
 }
 
@@ -82,10 +69,11 @@ impl TryFromCv<image::DynamicImage> for AVFrame {
 /// 优先考虑基于 ffmpeg 转换
 ///
 // &AVFrame -> RgbImage
-impl TryFromCv<&AVFrame> for image::RgbImage {
+impl TryToCv<image::RgbImage> for AVFrame {
     type Error = Error;
 
-    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<image::RgbImage, Self::Error> {
+        let from = self;
         let width = from.width as u32;
         let height = from.height as u32;
         let yuv_vec = [
@@ -135,67 +123,41 @@ impl TryFromCv<&AVFrame> for image::RgbImage {
                 Ok(buffer)
             }
 
-            // YUV420P => RGB (可以基于 ffmpeg 转换)
-            format if format == ffi::AV_PIX_FMT_YUV420P => {
-                let y_stride = from.linesize[0] as usize;
-                let u_stride = from.linesize[1] as usize;
-                let v_stride = from.linesize[2] as usize;
-
-                let y_data = unsafe {
-                    std::slice::from_raw_parts(from.data[0], y_stride * from.height as usize)
-                };
-                let u_data = unsafe {
-                    std::slice::from_raw_parts(from.data[1], u_stride * (from.height as usize / 2))
-                };
-                let v_data = unsafe {
-                    std::slice::from_raw_parts(from.data[2], v_stride * (from.height as usize / 2))
-                };
-
-                let mut buffer = image::RgbImage::new(width, height);
-                for y in 0..height {
-                    for x in 0..width {
-                        let y_val = y_data[y as usize * y_stride + x as usize] as f32;
-                        let u_val =
-                            u_data[(y as usize / 2) * u_stride + (x as usize / 2)] as f32 - 128.0;
-                        let v_val =
-                            v_data[(y as usize / 2) * v_stride + (x as usize / 2)] as f32 - 128.0;
-
-                        // YUV to RGB conversion formulas (BT.601):
-                        // R = Y + 1.402 * (V - 128)
-                        // G = Y - 0.344136 * (U - 128) - 0.714136 * (V - 128)
-                        // B = Y + 1.772 * (U - 128)
-                        let r = (y_val + 1.402 * v_val).clamp(0.0, 255.0) as u8;
-                        let g =
-                            (y_val - 0.344136 * u_val - 0.714136 * v_val).clamp(0.0, 255.0) as u8;
-                        let b = (y_val + 1.772 * u_val).clamp(0.0, 255.0) as u8;
-
-                        buffer.put_pixel(x, y, image::Rgb([r, g, b]));
-                    }
-                }
-                Ok(buffer)
-            }
-
             format => Err(Error::msg(format!("Unsupported pixel format: {}", format))),
         }
     }
 }
 
-// AVFrame -> DynamicImage
-impl TryFromCv<AVFrame> for image::RgbImage {
-    type Error = Error;
-
-    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &AVFrame -> RgbaImage
-impl TryFromCv<&AVFrame> for image::RgbaImage {
+impl TryToCv<image::RgbaImage> for AVFrame {
     type Error = Error;
 
-    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<image::RgbaImage, Self::Error> {
+        let from = self;
         let width = from.width as u32;
         let height = from.height as u32;
+
+        // 统一走 ffmpeg swscale 做 YUV -> RGBA，避免手写 BT.601 的有限/全范围语义风险
+        let yuv_vec = [
+            ffi::AV_PIX_FMT_YUYV422,
+            ffi::AV_PIX_FMT_YVYU422,
+            ffi::AV_PIX_FMT_UYVY422,
+            ffi::AV_PIX_FMT_UYYVYY411,
+            ffi::AV_PIX_FMT_YUVA420P,
+            ffi::AV_PIX_FMT_YUVA422P,
+            ffi::AV_PIX_FMT_YUVA444P,
+            ffi::AV_PIX_FMT_YUV410P,
+            ffi::AV_PIX_FMT_YUV411P,
+            ffi::AV_PIX_FMT_YUV420P,
+            ffi::AV_PIX_FMT_YUV422P,
+            ffi::AV_PIX_FMT_YUV440P,
+            ffi::AV_PIX_FMT_YUV444P,
+        ];
+        let from = if yuv_vec.contains(&from.format) {
+            with_rsmpeg::convert_avframe(from, from.width, from.height, ffi::AV_PIX_FMT_RGBA)?
+        } else {
+            from.clone()
+        };
 
         match from.format {
             // RGBA 和 BGRA
@@ -246,66 +208,16 @@ impl TryFromCv<&AVFrame> for image::RgbaImage {
                 Ok(buffer)
             }
 
-            // YUV420P => RGB (可以基于 ffmpeg 转换)
-            format if format == ffi::AV_PIX_FMT_YUV420P => {
-                let y_stride = from.linesize[0] as usize;
-                let u_stride = from.linesize[1] as usize;
-                let v_stride = from.linesize[2] as usize;
-
-                let y_data = unsafe {
-                    std::slice::from_raw_parts(from.data[0], y_stride * from.height as usize)
-                };
-                let u_data = unsafe {
-                    std::slice::from_raw_parts(from.data[1], u_stride * (from.height as usize / 2))
-                };
-                let v_data = unsafe {
-                    std::slice::from_raw_parts(from.data[2], v_stride * (from.height as usize / 2))
-                };
-
-                let mut buffer = image::RgbaImage::new(width, height);
-
-                for y in 0..height {
-                    for x in 0..width {
-                        // Get YUV values
-                        let y_val = y_data[y as usize * y_stride + x as usize] as f32;
-                        let u_val =
-                            u_data[(y as usize / 2) * u_stride + (x as usize / 2)] as f32 - 128.0;
-                        let v_val =
-                            v_data[(y as usize / 2) * v_stride + (x as usize / 2)] as f32 - 128.0;
-
-                        // YUV to RGB conversion formulas (BT.601):
-                        // R = Y + 1.402 * (V - 128)
-                        // G = Y - 0.344136 * (U - 128) - 0.714136 * (V - 128)
-                        // B = Y + 1.772 * (U - 128)
-                        let r = (y_val + 1.402 * v_val).clamp(0.0, 255.0) as u8;
-                        let g =
-                            (y_val - 0.344136 * u_val - 0.714136 * v_val).clamp(0.0, 255.0) as u8;
-                        let b = (y_val + 1.772 * u_val).clamp(0.0, 255.0) as u8;
-
-                        buffer.put_pixel(x, y, image::Rgba([r, g, b, 255]));
-                    }
-                }
-                Ok(buffer)
-            }
-
             format => Err(Error::msg(format!("Unsupported pixel format: {}", format))),
         }
     }
 }
 
-// AVFrame -> RgbaImage
-impl TryFromCv<AVFrame> for image::RgbaImage {
-    type Error = Error;
-
-    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &AVFrame -> GrayImage
-impl TryFromCv<&AVFrame> for image::GrayImage {
+impl TryToCv<image::GrayImage> for AVFrame {
     type Error = Error;
-    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<image::GrayImage, Self::Error> {
+        let from = self;
         let width = from.width as u32;
         let height = from.height as u32;
 
@@ -390,23 +302,15 @@ impl TryFromCv<&AVFrame> for image::GrayImage {
     }
 }
 
-// AVFrame -> GrayImage
-impl TryFromCv<AVFrame> for image::GrayImage {
-    type Error = Error;
-
-    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
 
 // &RgbImage -> AVFrame
-impl TryFromCv<&image::RgbImage> for AVFrame {
+impl TryToCv<AVFrame> for image::RgbImage {
     type Error = Error;
 
-    fn try_from_cv(from: &image::RgbImage) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let from = self;
         let (width, height) = from.dimensions();
 
         // 创建源 AVFrame，并分配缓冲区
@@ -445,19 +349,11 @@ impl TryFromCv<&image::RgbImage> for AVFrame {
     }
 }
 
-// RgbImage -> AVFrame
-impl TryFromCv<image::RgbImage> for AVFrame {
-    type Error = Error;
-
-    fn try_from_cv(from: image::RgbImage) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &RgbaImage -> AVFrame
-impl TryFromCv<&image::RgbaImage> for AVFrame {
+impl TryToCv<AVFrame> for image::RgbaImage {
     type Error = Error;
-    fn try_from_cv(from: &image::RgbaImage) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let from = self;
         let (width, height) = from.dimensions();
 
         // 创建源 AVFrame，并分配缓冲区
@@ -478,18 +374,11 @@ impl TryFromCv<&image::RgbaImage> for AVFrame {
     }
 }
 
-// RgbaImage -> AVFrame
-impl TryFromCv<image::RgbaImage> for AVFrame {
-    type Error = Error;
-    fn try_from_cv(from: image::RgbaImage) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &GrayImage -> AVFrame
-impl TryFromCv<&image::GrayImage> for AVFrame {
+impl TryToCv<AVFrame> for image::GrayImage {
     type Error = Error;
-    fn try_from_cv(from: &image::GrayImage) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let from = self;
         let (width, height) = from.dimensions();
 
         // 创建源 AVFrame，并分配缓冲区
@@ -510,11 +399,59 @@ impl TryFromCv<&image::GrayImage> for AVFrame {
     }
 }
 
-// GrayImage -> AVFrame
-impl TryFromCv<image::GrayImage> for AVFrame {
+// &GrayAlphaImage (LumaA) -> AVFrame
+// 亮度(L)写入 GRAY8，alpha 通道在灰度帧中不保留（AVFrame GRAY8 无 alpha 平面）。
+impl TryToCv<AVFrame> for image::GrayAlphaImage {
     type Error = Error;
-    fn try_from_cv(from: image::GrayImage) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
+
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let from = self;
+        let (width, height) = from.dimensions();
+
+        let mut frame = AVFrame::new();
+        frame.set_width(width as i32);
+        frame.set_height(height as i32);
+        frame.set_format(ffi::AV_PIX_FMT_GRAY8);
+        frame.set_pts(0);
+        frame.alloc_buffer().unwrap();
+
+        unsafe {
+            let buffer_slice =
+                std::slice::from_raw_parts_mut(frame.data[0], (width * height) as usize);
+            for (i, pixel) in from.pixels().enumerate() {
+                buffer_slice[i] = pixel[0];
+            }
+        }
+
+        Ok(frame)
+    }
+}
+
+// AVFrame -> GrayAlphaImage (LumaA)
+// 亮度取 Y 通道（经 ffmpeg 转 GRAY8），alpha 固定为全不透明(255)。
+impl TryToCv<image::GrayAlphaImage> for AVFrame {
+    type Error = Error;
+
+    fn try_to_cv(&self) -> Result<image::GrayAlphaImage, Self::Error> {
+        let from = self;
+        let width = from.width as u32;
+        let height = from.height as u32;
+
+        // 统一经 ffmpeg swscale 取亮度，避免手写 YUV/灰度转换
+        let gray =
+            with_rsmpeg::convert_avframe(from, from.width, from.height, ffi::AV_PIX_FMT_GRAY8)?;
+        let stride = gray.linesize[0] as usize;
+        let data =
+            unsafe { std::slice::from_raw_parts(gray.data[0], stride * gray.height as usize) };
+
+        let mut buffer = image::GrayAlphaImage::new(width, height);
+        for y in 0..height {
+            for x in 0..width {
+                let pos = y as usize * stride + x as usize;
+                buffer.put_pixel(x, y, image::LumaA([data[pos], 255]));
+            }
+        }
+        Ok(buffer)
     }
 }
 
@@ -680,8 +617,9 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGB24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> RgbImage
-        let rgb_image =
-            image::RgbImage::try_from_cv(&frame).expect("Failed to convert AVFrame to RgbImage");
+        let rgb_image: image::RgbImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to RgbImage");
 
         // 验证转换结果
         assert_eq!(rgb_image.get_pixel(0, 0), &image::Rgb([255, 0, 0]));
@@ -690,8 +628,9 @@ mod tests {
         assert_eq!(rgb_image.get_pixel(1, 1), &image::Rgb([255, 255, 0]));
 
         // RgbImage -> AVFrame
-        let new_frame =
-            AVFrame::try_from_cv(&rgb_image).expect("Failed to convert RgbImage back to AVFrame");
+        let new_frame: AVFrame = (&rgb_image)
+            .try_to_cv()
+            .expect("Failed to convert RgbImage back to AVFrame");
 
         // 验证格式和尺寸
         assert_eq!(new_frame.format, ffi::AV_PIX_FMT_RGB24);
@@ -717,8 +656,9 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGBA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> RgbaImage
-        let rgba_image =
-            image::RgbaImage::try_from_cv(&frame).expect("Failed to convert AVFrame to RgbaImage");
+        let rgba_image: image::RgbaImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to RgbaImage");
 
         // 验证转换结果
         assert_eq!(rgba_image.get_pixel(0, 0), &image::Rgba([255, 0, 0, 255]));
@@ -727,8 +667,9 @@ mod tests {
         assert_eq!(rgba_image.get_pixel(1, 1), &image::Rgba([255, 255, 0, 128]));
 
         // RgbaImage -> AVFrame
-        let new_frame =
-            AVFrame::try_from_cv(&rgba_image).expect("Failed to convert RgbaImage back to AVFrame");
+        let new_frame: AVFrame = (&rgba_image)
+            .try_to_cv()
+            .expect("Failed to convert RgbaImage back to AVFrame");
 
         // 验证格式和尺寸
         assert_eq!(new_frame.format, ffi::AV_PIX_FMT_RGBA);
@@ -758,21 +699,22 @@ mod tests {
         );
 
         // YUV420P -> RgbImage
-        let rgb_image = image::RgbImage::try_from_cv(&frame)
+        let rgb_image: image::RgbImage = (&frame)
+            .try_to_cv()
             .expect("Failed to convert YUV420P AVFrame to RgbImage");
 
-        // 验证转换结果（注意：YUV->RGB 转换可能有轻微的舍入误差）
+        // 验证转换结果（RgbImage 路径统一走 ffmpeg swscale，有限范围 Y=235 会被扩展到全范围 255）
         let first_pixel = rgb_image.get_pixel(0, 0);
         println!(
             "First pixel: ({}, {}, {})",
             first_pixel[0], first_pixel[1], first_pixel[2]
         );
-        // FIXME: ffmpeg 转换之后是 255， 但是自定义转换之后不变
-        // assert!((first_pixel[0] as i32 - 235).abs() <= 1);
+        assert_eq!(first_pixel, &image::Rgb([255, 255, 255]));
 
         // RgbImage -> YUV420P AVFrame
-        let new_frame =
-            AVFrame::try_from_cv(&rgb_image).expect("Failed to convert RgbImage back to AVFrame");
+        let new_frame: AVFrame = (&rgb_image)
+            .try_to_cv()
+            .expect("Failed to convert RgbImage back to AVFrame");
 
         assert_eq!(new_frame.format, ffi::AV_PIX_FMT_RGB24);
         assert_eq!(new_frame.width, 2);
@@ -792,8 +734,9 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> GrayImage
-        let gray_image =
-            image::GrayImage::try_from_cv(&frame).expect("Failed to convert AVFrame to GrayImage");
+        let gray_image: image::GrayImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to GrayImage");
 
         // 验证转换结果
         assert_eq!(gray_image.get_pixel(0, 0), &image::Luma([0]));
@@ -802,8 +745,9 @@ mod tests {
         assert_eq!(gray_image.get_pixel(1, 1), &image::Luma([255]));
 
         // GrayImage -> AVFrame
-        let new_frame =
-            AVFrame::try_from_cv(&gray_image).expect("Failed to convert GrayImage back to AVFrame");
+        let new_frame: AVFrame = (&gray_image)
+            .try_to_cv()
+            .expect("Failed to convert GrayImage back to AVFrame");
 
         // 验证格式和尺寸
         assert_eq!(new_frame.format, ffi::AV_PIX_FMT_GRAY8);
@@ -811,6 +755,31 @@ mod tests {
         assert_eq!(new_frame.height, 2);
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
+    }
+
+    #[test]
+    fn test_gray_alpha_conversion() {
+        // 创建灰度数据，验证 GrayAlphaImage 的亮度通道
+        let test_data = vec![0, 85, 170, 255];
+        let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
+
+        // AVFrame -> GrayAlphaImage
+        let ga: image::GrayAlphaImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to GrayAlphaImage");
+
+        assert_eq!(ga.get_pixel(0, 0), &image::LumaA([0, 255]));
+        assert_eq!(ga.get_pixel(1, 0), &image::LumaA([85, 255]));
+        assert_eq!(ga.get_pixel(0, 1), &image::LumaA([170, 255]));
+        assert_eq!(ga.get_pixel(1, 1), &image::LumaA([255, 255]));
+
+        // GrayAlphaImage -> AVFrame（亮度写入 GRAY8）
+        let new_frame: AVFrame = (&ga)
+            .try_to_cv()
+            .expect("Failed to convert GrayAlphaImage to AVFrame");
+        assert_eq!(new_frame.format, ffi::AV_PIX_FMT_GRAY8);
+        assert_eq!(new_frame.width, 2);
+        assert_eq!(new_frame.height, 2);
     }
 
     #[test]
@@ -824,8 +793,8 @@ mod tests {
             None,
             None,
         );
-        let rgb_image = image::RgbImage::try_from_cv(&rgb_frame).unwrap();
-        let new_rgb_frame = AVFrame::try_from_cv(&rgb_image).unwrap();
+        let rgb_image: image::RgbImage = (&rgb_frame).try_to_cv().unwrap();
+        let new_rgb_frame: AVFrame = (&rgb_image).try_to_cv().unwrap();
         assert_eq!(new_rgb_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // RGBA 格式保持测试
@@ -839,8 +808,8 @@ mod tests {
             None,
             None,
         );
-        let rgba_image = image::RgbaImage::try_from_cv(&rgba_frame).unwrap();
-        let new_rgba_frame = AVFrame::try_from_cv(&rgba_image).unwrap();
+        let rgba_image: image::RgbaImage = (&rgba_frame).try_to_cv().unwrap();
+        let new_rgba_frame: AVFrame = (&rgba_image).try_to_cv().unwrap();
         assert_eq!(new_rgba_frame.format, ffi::AV_PIX_FMT_RGBA);
     }
 
@@ -853,8 +822,9 @@ mod tests {
         rgb_image.put_pixel(0, 1, image::Rgb([0, 0, 255])); // Blue
         rgb_image.put_pixel(1, 1, image::Rgb([255, 255, 0])); // Yellow
 
-        let frame =
-            AVFrame::try_from_cv(&rgb_image).expect("Failed to convert RgbImage to AVFrame");
+        let frame: AVFrame = (&rgb_image)
+            .try_to_cv()
+            .expect("Failed to convert RgbImage to AVFrame");
 
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
         assert_eq!(frame.width, 2);
@@ -876,8 +846,9 @@ mod tests {
         rgba_image.put_pixel(0, 1, image::Rgba([0, 0, 255, 255])); // Blue
         rgba_image.put_pixel(1, 1, image::Rgba([255, 255, 0, 128])); // Semi-transparent Yellow
 
-        let frame =
-            AVFrame::try_from_cv(&rgba_image).expect("Failed to convert RgbaImage to AVFrame");
+        let frame: AVFrame = (&rgba_image)
+            .try_to_cv()
+            .expect("Failed to convert RgbaImage to AVFrame");
 
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGBA);
         assert_eq!(frame.width, 2);
@@ -893,8 +864,9 @@ mod tests {
         gray_image.put_pixel(0, 1, image::Luma([170])); // Light gray
         gray_image.put_pixel(1, 1, image::Luma([255])); // White
 
-        let frame =
-            AVFrame::try_from_cv(&gray_image).expect("Failed to convert GrayImage to AVFrame");
+        let frame: AVFrame = (&gray_image)
+            .try_to_cv()
+            .expect("Failed to convert GrayImage to AVFrame");
 
         assert_eq!(frame.format, ffi::AV_PIX_FMT_GRAY8);
         assert_eq!(frame.width, 2);
@@ -917,11 +889,13 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGB24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -948,11 +922,13 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGBA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -979,11 +955,13 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_BGR24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -1010,11 +988,13 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_BGRA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -1036,11 +1016,13 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -1071,11 +1053,13 @@ mod tests {
         );
 
         // AVFrame YUV420P -> DynamicImage RGB24
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage RGB24 -> AVFrame RGB24
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸
@@ -1099,8 +1083,8 @@ mod tests {
             None,
             None,
         );
-        let rgb_image = DynamicImage::try_from_cv(&rgb_frame).unwrap();
-        let new_rgb_frame = AVFrame::try_from_cv(&rgb_image).unwrap();
+        let rgb_image: image::DynamicImage = (&rgb_frame).try_to_cv().unwrap();
+        let new_rgb_frame: AVFrame = (&rgb_image).try_to_cv().unwrap();
         assert_eq!(new_rgb_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // RGBA 格式保持测试
@@ -1114,8 +1098,8 @@ mod tests {
             None,
             None,
         );
-        let rgba_image = DynamicImage::try_from_cv(&rgba_frame).unwrap();
-        let new_rgba_frame = AVFrame::try_from_cv(&rgba_image).unwrap();
+        let rgba_image: image::DynamicImage = (&rgba_frame).try_to_cv().unwrap();
+        let new_rgba_frame: AVFrame = (&rgba_image).try_to_cv().unwrap();
         assert_eq!(new_rgba_frame.format, ffi::AV_PIX_FMT_RGBA);
 
         // BGR24 格式保持测试
@@ -1127,8 +1111,8 @@ mod tests {
             None,
             None,
         );
-        let bgr_image = DynamicImage::try_from_cv(&bgr_frame).unwrap();
-        let new_bgr_frame = AVFrame::try_from_cv(&bgr_image).unwrap();
+        let bgr_image: image::DynamicImage = (&bgr_frame).try_to_cv().unwrap();
+        let new_bgr_frame: AVFrame = (&bgr_image).try_to_cv().unwrap();
         assert_eq!(new_bgr_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // BGRA 格式保持测试
@@ -1142,8 +1126,8 @@ mod tests {
             None,
             None,
         );
-        let bgra_image = DynamicImage::try_from_cv(&bgra_frame).unwrap();
-        let new_bgra_frame = AVFrame::try_from_cv(&bgra_image).unwrap();
+        let bgra_image: image::DynamicImage = (&bgra_frame).try_to_cv().unwrap();
+        let new_bgra_frame: AVFrame = (&bgra_image).try_to_cv().unwrap();
         assert_eq!(new_bgra_frame.format, ffi::AV_PIX_FMT_RGBA);
 
         // GRAY8 格式保持测试
@@ -1155,8 +1139,8 @@ mod tests {
             None,
             None,
         );
-        let gray_image = DynamicImage::try_from_cv(&gray_frame).unwrap();
-        let new_gray_frame = AVFrame::try_from_cv(&gray_image).unwrap();
+        let gray_image: image::DynamicImage = (&gray_frame).try_to_cv().unwrap();
+        let new_gray_frame: AVFrame = (&gray_image).try_to_cv().unwrap();
         assert_eq!(new_gray_frame.format, ffi::AV_PIX_FMT_GRAY8);
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
@@ -1177,7 +1161,8 @@ mod tests {
         let dynamic_image = DynamicImage::ImageRgb8(rgb_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame = AVFrame::try_from_cv(&dynamic_image)
+        let frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
@@ -1193,8 +1178,9 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let _new_dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let _new_dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
     }
@@ -1214,7 +1200,8 @@ mod tests {
         let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame = AVFrame::try_from_cv(&dynamic_image)
+        let frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
         // 验证基本属性
@@ -1232,8 +1219,9 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let new_dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let new_dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
 
@@ -1257,7 +1245,8 @@ mod tests {
         let dynamic_image = DynamicImage::ImageLuma8(gray_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame = AVFrame::try_from_cv(&dynamic_image)
+        let frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
         assert_eq!(frame.format, ffi::AV_PIX_FMT_GRAY8);
@@ -1274,8 +1263,9 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let _new_dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let _new_dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
     }
@@ -1300,11 +1290,13 @@ mod tests {
         );
 
         // AVFrame -> DynamicImage
-        let dynamic_image =
-            DynamicImage::try_from_cv(&frame).expect("Failed to convert AVFrame to DynamicImage");
+        let dynamic_image: image::DynamicImage = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame = AVFrame::try_from_cv(&dynamic_image)
+        let new_frame: AVFrame = (&dynamic_image)
+            .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
         // 验证格式和尺寸

@@ -1,5 +1,5 @@
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
-use anyhow::{Error, Result};
+use crate::TryToCv;
+use anyhow::{ensure, Error, Result};
 use half::f16;
 use opencv::core as cv_core;
 use opencv::prelude::*;
@@ -46,6 +46,9 @@ mod element_type {
 }
 
 pub(crate) use mat_ext::*;
+// `MatExt` 仅在 `ndarray` 特性启用的模块中以 `as _` 消费；在仅启用
+// `full`（无 ndarray）时这些方法为死代码，故允许 dead_code，避免 `-D warnings` 失败。
+#[allow(dead_code)]
 mod mat_ext {
     use super::*;
 
@@ -86,8 +89,8 @@ mod mat_ext {
         where
             T: OpenCvElement,
         {
-            anyhow::ensure!(self.depth() == T::DEPTH, "element type mismatch");
-            anyhow::ensure!(self.is_continuous(), "Mat data must be continuous");
+            ensure!(self.depth() == T::DEPTH, "element type mismatch");
+            ensure!(self.is_continuous(), "Mat data must be continuous");
 
             let numel = self.numel();
             let ptr = self.ptr(0)? as *const T;
@@ -123,16 +126,16 @@ mod mat_ext {
     }
 }
 
-impl<T> TryFromCv<&Mat> for cv_core::Point_<T>
+impl<T> TryToCv<cv_core::Point_<T>> for Mat
 where
     T: DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: &Mat) -> Result<Self> {
-        let slice = from.data_typed::<T>()?;
-        anyhow::ensure!(slice.len() == 2, "invalid length");
-        let point = Self {
+    fn try_to_cv(&self) -> Result<cv_core::Point_<T>, Self::Error> {
+        let slice = self.data_typed::<T>()?;
+        ensure!(slice.len() == 2, "invalid length");
+        let point = cv_core::Point_::<T> {
             x: slice[0],
             y: slice[1],
         };
@@ -140,27 +143,16 @@ where
     }
 }
 
-impl<T> TryFromCv<Mat> for cv_core::Point_<T>
+impl<T> TryToCv<cv_core::Point3_<T>> for Mat
 where
     T: DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: Mat) -> Result<Self> {
-        TryFromCv::try_from_cv(&from)
-    }
-}
-
-impl<T> TryFromCv<&Mat> for cv_core::Point3_<T>
-where
-    T: DataType,
-{
-    type Error = Error;
-
-    fn try_from_cv(from: &Mat) -> Result<Self> {
-        let slice = from.data_typed::<T>()?;
-        anyhow::ensure!(slice.len() == 3, "invalid length");
-        let point = Self {
+    fn try_to_cv(&self) -> Result<cv_core::Point3_<T>, Self::Error> {
+        let slice = self.data_typed::<T>()?;
+        ensure!(slice.len() == 3, "invalid length");
+        let point = cv_core::Point3_::<T> {
             x: slice[0],
             y: slice[1],
             z: slice[2],
@@ -169,64 +161,29 @@ where
     }
 }
 
-impl<T> TryFromCv<Mat> for cv_core::Point3_<T>
+impl<T> TryToCv<Mat> for cv_core::Point_<T>
 where
     T: DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: Mat) -> Result<Self> {
-        TryFromCv::try_from_cv(&from)
+    fn try_to_cv(&self) -> Result<Mat, Self::Error> {
+        let cv_core::Point_ { x, y, .. } = *self;
+        let mat = Mat::from_slice(&[x, y])?.clone_pointee();
+        Ok(mat)
     }
 }
 
-impl<T> TryFromCv<&cv_core::Point_<T>> for Mat
+impl<T> TryToCv<Mat> for cv_core::Point3_<T>
 where
     T: DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: &cv_core::Point_<T>) -> Result<Self> {
-        let cv_core::Point_ { x, y, .. } = *from;
-        let binding = [x, y];
-        let mat = Mat::from_slice(&binding)?;
-        Ok(mat.try_clone()?)
-    }
-}
-
-impl<T> TryFromCv<cv_core::Point_<T>> for Mat
-where
-    T: DataType,
-{
-    type Error = Error;
-
-    fn try_from_cv(from: cv_core::Point_<T>) -> Result<Self> {
-        TryFromCv::try_from_cv(&from)
-    }
-}
-
-impl<T> TryFromCv<&cv_core::Point3_<T>> for Mat
-where
-    T: DataType,
-{
-    type Error = Error;
-
-    fn try_from_cv(from: &cv_core::Point3_<T>) -> Result<Self> {
-        let cv_core::Point3_ { x, y, z, .. } = *from;
-        let binding = [x, y, z];
-        let mat = Mat::from_slice(&binding)?;
-        Ok(mat.try_clone()?)
-    }
-}
-
-impl<T> TryFromCv<cv_core::Point3_<T>> for Mat
-where
-    T: DataType,
-{
-    type Error = Error;
-
-    fn try_from_cv(from: cv_core::Point3_<T>) -> Result<Self> {
-        TryFromCv::try_from_cv(&from)
+    fn try_to_cv(&self) -> Result<Mat, Self::Error> {
+        let cv_core::Point3_ { x, y, z, .. } = *self;
+        let mat = Mat::from_slice(&[x, y, z])?.clone_pointee();
+        Ok(mat)
     }
 }
 
@@ -293,16 +250,16 @@ mod tests {
     fn test_point2_conversion() -> Result<()> {
         // 测试 Point2f
         let point = Point2f::new(1.5, 2.5);
-        let mat: Mat = (&point).try_into_cv()?;
-        let converted_point: Point2f = (&mat).try_into_cv()?;
+        let mat: Mat = (&point).try_to_cv()?;
+        let converted_point: Point2f = (&mat).try_to_cv()?;
 
         assert!((point.x - converted_point.x).abs() < EPSILON as f32);
         assert!((point.y - converted_point.y).abs() < EPSILON as f32);
 
         // 测试 Point2i
         let point = Point2i::new(1, 2);
-        let mat: Mat = (&point).try_into_cv()?;
-        let converted_point: Point2i = (&mat).try_into_cv()?;
+        let mat: Mat = (&point).try_to_cv()?;
+        let converted_point: Point2i = (&mat).try_to_cv()?;
 
         assert_eq!(point.x, converted_point.x);
         assert_eq!(point.y, converted_point.y);
@@ -314,8 +271,8 @@ mod tests {
     fn test_point3_conversion() -> Result<()> {
         // 测试 Point3f
         let point = Point3f::new(1.5, 2.5, 3.5);
-        let mat: Mat = (&point).try_into_cv()?;
-        let converted_point: Point3f = (&mat).try_into_cv()?;
+        let mat: Mat = (&point).try_to_cv()?;
+        let converted_point: Point3f = (&mat).try_to_cv()?;
 
         assert!((point.x - converted_point.x).abs() < EPSILON as f32);
         assert!((point.y - converted_point.y).abs() < EPSILON as f32);
@@ -323,8 +280,8 @@ mod tests {
 
         // 测试 Point3i
         let point = Point3i::new(1, 2, 3);
-        let mat: Mat = (&point).try_into_cv()?;
-        let converted_point: Point3i = (&mat).try_into_cv()?;
+        let mat: Mat = (&point).try_to_cv()?;
+        let converted_point: Point3i = (&mat).try_to_cv()?;
 
         assert_eq!(point.x, converted_point.x);
         assert_eq!(point.y, converted_point.y);
@@ -337,8 +294,10 @@ mod tests {
     fn test_invalid_point_conversion() -> Result<()> {
         // 测试无效的数据长度
         let mat = Mat::new_randn_2d(1, 1, cv_core::CV_32F)?;
-        assert!(Point2f::try_from_cv(&mat).is_err());
-        assert!(Point3f::try_from_cv(&mat).is_err());
+        let point: Result<Point2f, _> = (&mat).try_to_cv();
+        assert!(point.is_err());
+        let point: Result<Point3f, _> = (&mat).try_to_cv();
+        assert!(point.is_err());
 
         Ok(())
     }

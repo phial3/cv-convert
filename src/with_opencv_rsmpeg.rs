@@ -1,5 +1,5 @@
 use crate::with_rsmpeg;
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use crate::TryToCv;
 use anyhow::{Context, Error, Result};
 use opencv::prelude::*;
 use rsmpeg::avutil::AVFrame;
@@ -13,10 +13,11 @@ use std::ops::Mul;
 /// - CV_8UC1 (Gray) -> AV_PIX_FMT_GRAY8
 /// - CV_8UC4 (BGRA) -> AV_PIX_FMT_BGRA
 /// - CV_8UC4 (RGBA) -> AV_PIX_FMT_RGBA
-impl TryFromCv<&Mat> for AVFrame {
+impl TryToCv<AVFrame> for Mat {
     type Error = Error;
 
-    fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let from = self;
         // 创建一个标准化的 Mat（如果需要转换）
         let normalized_mat = match (from.channels(), from.depth()) {
             // 1 通道格式
@@ -188,24 +189,11 @@ impl TryFromCv<&Mat> for AVFrame {
     }
 }
 
-impl TryFromCv<Mat> for AVFrame {
-    type Error = Error;
-    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
-/// Convert FFmpeg AVFrame to OpenCV Mat
-/// 支持的格式转换：
-/// - AV_PIX_FMT_BGR24 -> CV_8UC3 (BGR)
-/// - AV_PIX_FMT_RGB24 -> CV_8UC3 (RGB)
-/// - AV_PIX_FMT_GRAY8 -> CV_8UC1 (Gray)
-/// - AV_PIX_FMT_BGRA -> CV_8UC4 (BGRA)
-/// - AV_PIX_FMT_RGBA -> CV_8UC4 (RGBA)
-impl TryFromCv<&AVFrame> for Mat {
+impl TryToCv<Mat> for AVFrame {
     type Error = Error;
 
-    fn try_from_cv(from: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<Mat, Self::Error> {
+        let from = self;
         // 基于 ffmpeg 转换
         // YUV420P => RGB24
         let from = if from.format == ffi::AV_PIX_FMT_YUV420P {
@@ -229,13 +217,22 @@ impl TryFromCv<&AVFrame> for Mat {
             }
         };
 
+        // 根据通道数选择正确的 Mat 类型
+        let mat_type = match channels {
+            1 => opencv::core::CV_8UC1,
+            3 => opencv::core::CV_8UC3,
+            4 => opencv::core::CV_8UC4,
+            _ => {
+                return Err(Error::msg(format!(
+                    "Unsupported channel count: {}",
+                    channels
+                )))
+            }
+        };
+
         let dst_mat = unsafe {
             // 创建目标 Mat
-            let mut mat = Mat::new_rows_cols(
-                from.height,
-                from.width,
-                opencv::core::CV_8U + ((channels - 1) << 3), // 计算正确的 Mat 类型
-            )?;
+            let mut mat = Mat::new_rows_cols(from.height, from.width, mat_type)?;
 
             let src_step = from.linesize[0] as usize;
             let width = from.width;
@@ -265,13 +262,6 @@ impl TryFromCv<&AVFrame> for Mat {
             }
             None => Ok(dst_mat),
         }
-    }
-}
-
-impl TryFromCv<AVFrame> for Mat {
-    type Error = Error;
-    fn try_from_cv(from: AVFrame) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
     }
 }
 
@@ -399,7 +389,9 @@ mod tests {
         data[9..12].copy_from_slice(&[0, 255, 255]); // Yellow
 
         // BGR Mat -> RGB24 AVFrame
-        let frame = AVFrame::try_from_cv(&mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 2);
         assert_eq!(frame.height, 2);
@@ -417,7 +409,9 @@ mod tests {
         }
 
         // RGB24 AVFrame -> BGR Mat
-        let new_mat = Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let new_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
         // 验证 Mat 属性
         assert_eq!(new_mat.typ(), opencv::core::CV_8UC3);
         assert_eq!(new_mat.depth(), opencv::core::CV_8U);
@@ -464,7 +458,9 @@ mod tests {
         assert_eq!(mat.typ(), opencv::core::CV_8UC1);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 2);
         assert_eq!(frame.height, 2);
@@ -488,7 +484,9 @@ mod tests {
         }
 
         // AVFrame -> Mat
-        let new_mat = Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let new_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
         // 验证转换后的 Mat 属性
         assert_eq!(new_mat.rows(), 2);
         assert_eq!(new_mat.cols(), 2);
@@ -615,7 +613,9 @@ mod tests {
         let original_mat = create_test_mat(64, 48, opencv::core::CV_8UC1);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&original_mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&original_mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
 
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 64);
@@ -623,8 +623,9 @@ mod tests {
         assert_eq!(frame.format, ffi::AV_PIX_FMT_GRAY8);
 
         // AVFrame -> Mat
-        let converted_mat =
-            Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let converted_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
 
         // 验证转换结果
         assert!(verify_mats_similar(&original_mat, &converted_mat, 1.0));
@@ -640,7 +641,9 @@ mod tests {
         let original_mat = create_test_mat(64, 48, opencv::core::CV_8UC3);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&original_mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&original_mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
 
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 64);
@@ -648,8 +651,9 @@ mod tests {
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // AVFrame -> Mat
-        let converted_mat =
-            Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let converted_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
 
         // 验证转换结果
         assert!(verify_mats_similar(&original_mat, &converted_mat, 1.0));
@@ -665,7 +669,9 @@ mod tests {
         let original_mat = create_test_mat(64, 48, opencv::core::CV_8UC4);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&original_mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&original_mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
 
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 64);
@@ -673,8 +679,9 @@ mod tests {
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGBA);
 
         // AVFrame -> Mat
-        let converted_mat =
-            Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let converted_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
 
         // 验证转换结果
         assert!(verify_mats_similar(&original_mat, &converted_mat, 1.0));
@@ -690,7 +697,9 @@ mod tests {
         let original_mat = create_test_mat(64, 48, opencv::core::CV_16UC1);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&original_mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&original_mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
 
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 64);
@@ -699,8 +708,9 @@ mod tests {
 
         // AVFrame -> Mat
         // 注意：这里会有精度损失，因为从16位转换到8位
-        let converted_mat =
-            Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let converted_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
 
         // 转换原始 mat 为 8位以进行比较
         let mut original_8bit = Mat::default();
@@ -729,7 +739,9 @@ mod tests {
         let original_mat = create_test_mat(64, 48, opencv::core::CV_32FC3);
 
         // Mat -> AVFrame
-        let frame = AVFrame::try_from_cv(&original_mat).expect("Failed to convert Mat to AVFrame");
+        let frame: AVFrame = (&original_mat)
+            .try_to_cv()
+            .expect("Failed to convert Mat to AVFrame");
 
         // 验证 AVFrame 属性
         assert_eq!(frame.width, 64);
@@ -737,8 +749,9 @@ mod tests {
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // AVFrame -> Mat
-        let converted_mat =
-            Mat::try_from_cv(&frame).expect("Failed to convert AVFrame back to Mat");
+        let converted_mat: Mat = (&frame)
+            .try_to_cv()
+            .expect("Failed to convert AVFrame back to Mat");
 
         // 转换原始 mat 为 8位以进行比较
         let mut original_8bit = Mat::default();

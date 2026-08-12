@@ -1,8 +1,8 @@
 [package]
 name = 'cv-convert'
 description = 'Type conversions among famous Rust computer vision libraries'
-version = '0.25.0'
-authors = ['jerry73204 <jerry73204@gmail.com>', 'phial3']
+version = '0.26.0'
+authors = ['jerry73204', 'phial3']
 edition = '2021'
 documentation = 'https://github.com/phial3/cv-convert'
 repository = 'https://github.com/phial3/cv-convert'
@@ -18,7 +18,7 @@ default = [
     "imageproc",
 ]
 image = ["dep:image"]
-ndarray = ["dep:ndarray"]
+ndarray = ["dep:ndarray", "dep:yuvutils-rs"]
 nalgebra = ["dep:nalgebra"]
 imageproc = ["dep:imageproc"]
 # sys
@@ -38,7 +38,6 @@ pix = "1.0"
 coolor = "1.0"
 imgref = "1.11"
 palette = "0.7"
-yuvutils-rs = "0.8"
 fast_image_resize = "6.1"
 
 [dependencies]
@@ -50,6 +49,7 @@ num-traits = '0.2'
 image = { version = '0.25', default-features = true, optional = true }
 nalgebra = { version = '0.35', default-features = true, optional = true }
 ndarray = { version = '0.17', default-features = true, optional = true }
+yuvutils-rs = { version = '0.8', optional = true }
 imageproc = { version = '0.27', default-features = true, optional = true }
 tch = { version = '0.24', default-features = true, optional = true}
 opencv = { version = '0.100', default-features = true, optional = true, features = ["clang-runtime"] }

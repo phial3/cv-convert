@@ -32,32 +32,23 @@
 //!
 //! # Traits
 //!
-//! The traits [FromCv] and [IntoCv] provide `.from_cv()` and `.into_cv()`, and
-//! traits [TryFromCv] and [TryIntoCv] provide `.try_from_cv()` and `.try_into_cv()` methods respectively.
-//! Just like std's [From], [Into], [TryFromCv] and [TryIntoCv].
+//! The traits [ToCv] and [TryToCv] provide `.to_cv()` and `.try_to_cv()`, and
+//! traits [AsRefCv] and [TryAsRefCv] provide `.as_ref_cv()` and `.try_as_ref_cv()` methods respectively.
+//! Just like std's [From], [TryFrom], [AsRef] and [TryAsRef].
 //!
 //!
 //! ```rust,ignore
-//! use nalgebra;
-//! use cv_convert::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+//! use cv_convert::{ToCv, TryToCv};
 //! use nalgebra as na;
 //! use opencv as cv;
 //!
-//! // FromCv
+//! // ToCv
 //! let cv_point = cv::core::Point2d::new(1.0, 3.0);
-//! let na_points = na::Point2::<f64>::from_cv(&cv_point);
+//! let na_point: na::Point2<f64> = (&cv_point).to_cv();
 //!
-//! // IntoCv
-//! let cv_point = cv::core::Point2d::new(1.0, 3.0);
-//! let na_points: na::Point2<f64> = cv_point.into_cv();
-//!
-//! // TryFromCv
+//! // TryToCv
 //! let na_mat = na::DMatrix::from_vec(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-//! let cv_mat = cv::core::Mat::try_from_cv(&na_mat).unwrap();
-//!
-//! // TryIntoCv
-//! let na_mat = na::DMatrix::from_vec(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-//! let cv_mat: cv::core::Mat = na_mat.try_into_cv().unwrap();
+//! let cv_mat = cv::core::Mat::try_to_cv(&na_mat).unwrap();
 //! ```
 //!
 //!
@@ -65,10 +56,17 @@
 //!
 //! The notations are used for simplicity.
 //!
-//! - `S -> T` suggests the conversion is defined by non-fallible [FromCv].
-//! - `S ->? T` suggests the conversion is defined by fallible [TryFromCv].
+//! - `S -> T` suggests the conversion is defined by non-fallible [ToCv].
+//! - `S ->? T` suggests the conversion is defined by fallible [TryToCv].
 //! - `(&)T` means the type can be either owned or borrowed.
 //! - `&'a S -> &'a T` suggests that the target type borrows the source type.
+//!
+//! The list below is representative. The conversion coverage is implemented
+//! on a per-library-pair basis across the following modules, and each module
+//! documents its exact `impl`s:
+//!
+//! - `with_opencv*`, `with_tch*`, `with_rsmpeg*`, `with_image*`,
+//!   `with_imageproc*`, `with_nalgebra*`, `with_ndarray*`
 //!
 //! ## opencv -> opencv
 //!
@@ -117,11 +115,7 @@
 //! - [(&)ImageBuffer](image::ImageBuffer) ->? [Mat](opencv::core::Mat)
 //! - [(&)DynamicImage](image::DynamicImage) ->? [Mat](opencv::core::Mat)
 //!
-//! ## opencv -> image 0.23
-//!
-//! - [Mat](opencv::core::Mat) ->? [(&)ImageBuffer](image::ImageBuffer)
-//!
-//! ## opencv -> image 0.24
+//! ## opencv -> image
 //!
 //! - [Mat](opencv::core::Mat) ->? [(&)ImageBuffer](image::ImageBuffer)
 //! - [Mat](opencv::core::Mat) ->? [(&)DynamicImage](image::DynamicImage)
@@ -202,12 +196,10 @@
 
 pub mod prelude {
     pub use crate::common::prelude::*;
-    pub use crate::traits::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+    pub use crate::traits::{AsRefCv, ToCv, TryAsRefCv, TryToCv};
 }
 
 mod common;
-mod macros;
-use macros::*;
 
 pub mod pixel;
 

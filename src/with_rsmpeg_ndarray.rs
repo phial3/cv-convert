@@ -1,17 +1,18 @@
 use crate::pixel::PixelFormat;
 use crate::with_ndarray::{ArrayWithFormat, FramePixel, PixelType};
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use crate::TryToCv;
 use anyhow::{Error, Result};
 use ndarray::Array3;
 use num_traits::{NumCast, Zero};
 use rsmpeg::avutil::AVFrame;
 use rsmpeg::ffi;
 
-// &AVFrame -> Array3
-impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
+// AVFrame -> Array3
+impl<T: PixelType> TryToCv<Array3<T>> for AVFrame {
     type Error = Error;
 
-    fn try_from_cv(frame: &AVFrame) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<Array3<T>, Self::Error> {
+        let frame = self;
         if frame.data[0].is_null() {
             return Err(Error::msg("Cannot get frame data error"));
         }
@@ -53,22 +54,13 @@ impl<T: PixelType> TryFromCv<&AVFrame> for Array3<T> {
     }
 }
 
-// AVFrame -> Array3
-impl<T: PixelType> TryFromCv<AVFrame> for Array3<T> {
-    type Error = Error;
-
-    fn try_from_cv(frame: AVFrame) -> Result<Self, Self::Error> {
-        (&frame).try_into_cv()
-    }
-}
-
 // Array3 -> AVFrame
-impl<T: PixelType, F: FramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame {
+impl<T: PixelType, F: FramePixel> TryToCv<AVFrame> for ArrayWithFormat<T, F> {
     type Error = Error;
 
-    fn try_from_cv(arr_with_fmt: ArrayWithFormat<T, F>) -> Result<Self, Self::Error> {
-        let array = arr_with_fmt.array;
-        let pixel = arr_with_fmt.pixel;
+    fn try_to_cv(&self) -> Result<AVFrame, Self::Error> {
+        let array = &self.array;
+        let pixel = self.pixel.clone();
 
         match pixel.pix_fmt() {
             f if f == PixelFormat::RGB4.pix_fmt()
@@ -78,12 +70,12 @@ impl<T: PixelType, F: FramePixel> TryFromCv<ArrayWithFormat<T, F>> for AVFrame {
                 || f == PixelFormat::BGR8.pix_fmt()
                 || f == PixelFormat::BGR24.pix_fmt() =>
             {
-                array_rgb_to_avframe(&array, pixel)
+                array_rgb_to_avframe(array, pixel)
             }
             f if f == PixelFormat::RGBA.pix_fmt() || f == PixelFormat::BGRA.pix_fmt() => {
-                array_rgba_to_avframe(&array, pixel)
+                array_rgba_to_avframe(array, pixel)
             }
-            f if f == PixelFormat::GRAY8.pix_fmt() => array_gray_to_avframe(&array, pixel),
+            f if f == PixelFormat::GRAY8.pix_fmt() => array_gray_to_avframe(array, pixel),
             f if f == PixelFormat::YUV410P.pix_fmt()
                 || f == PixelFormat::YUV411P.pix_fmt()
                 || f == PixelFormat::YUV420P.pix_fmt()
@@ -555,7 +547,7 @@ mod tests {
         )?;
 
         // 转换为 Array3
-        let array = Array3::<u8>::try_from_cv(&frame)?;
+        let array: Array3<u8> = (&frame).try_to_cv()?;
 
         // 验证维度
         assert_eq!(array.dim(), (height as usize, width as usize, 3));
@@ -587,7 +579,7 @@ mod tests {
             Box::new(|x, y, c| ((x + y + c) % 256) as u8),
         )?;
 
-        let array = Array3::<u8>::try_from_cv(&frame)?;
+        let array: Array3<u8> = (&frame).try_to_cv()?;
 
         assert_eq!(array.dim(), (height as usize, width as usize, 4));
 
@@ -617,7 +609,7 @@ mod tests {
             Box::new(|x, y, _| ((x + y) % 256) as u8),
         )?;
 
-        let array = Array3::<u8>::try_from_cv(&frame)?;
+        let array: Array3<u8> = (&frame).try_to_cv()?;
 
         assert_eq!(array.dim(), (height as usize, width as usize, 1));
 
@@ -642,7 +634,7 @@ mod tests {
             Box::new(|x, y, c| ((x + y + c * 50) % 256) as u8),
         )?;
 
-        let array = Array3::<u8>::try_from_cv(&frame)?;
+        let array: Array3<u8> = (&frame).try_to_cv()?;
 
         assert_eq!(array.dim(), (height as usize, width as usize, 3));
 
@@ -689,7 +681,7 @@ mod tests {
         frame.set_width(0);
         frame.set_height(0);
 
-        let result = Array3::<u8>::try_from_cv(&frame);
+        let result: Result<Array3<u8>> = (&frame).try_to_cv();
         assert!(result.is_err());
     }
 
@@ -706,11 +698,11 @@ mod tests {
         )?;
 
         // 测试转换为 f32
-        let array_f32 = Array3::<f32>::try_from_cv(&frame)?;
+        let array_f32: Array3<f32> = (&frame).try_to_cv()?;
         assert_eq!(array_f32.dim(), (height as usize, width as usize, 3));
 
         // 测试转换为 u16
-        let array_u16 = Array3::<u16>::try_from_cv(&frame)?;
+        let array_u16: Array3<u16> = (&frame).try_to_cv()?;
         assert_eq!(array_u16.dim(), (height as usize, width as usize, 3));
 
         Ok(())
@@ -729,10 +721,10 @@ mod tests {
         )?;
 
         // 测试转换为 f32
-        let rgb_arr = Array3::<u8>::try_from_cv(&frame)?;
+        let rgb_arr: Array3<u8> = (&frame).try_to_cv()?;
         assert_eq!(rgb_arr.dim(), (height as usize, width as usize, 3));
 
-        let frame = AVFrame::try_from_cv(rgb_arr.with_format(PixelFormat::RGB24))?;
+        let frame: AVFrame = (&rgb_arr.with_format(PixelFormat::RGB24)).try_to_cv()?;
         assert_eq!(frame.width, width);
         assert_eq!(frame.height, height);
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
@@ -840,13 +832,13 @@ mod tests {
         let array = create_test_rgb_data(height, width, channels);
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(PixelFormat::RGB24))?;
+        let frame: AVFrame = (&array.clone().with_format(PixelFormat::RGB24)).try_to_cv()?;
 
         // 验证转换结果
         verify_frame_data(&frame, &array, PixelFormat::RGB24)?;
 
         // AVFrame -> Array3
-        let array_back: Array3<u8> = Array3::try_from_cv(&frame)?;
+        let array_back: Array3<u8> = (&frame).try_to_cv()?;
         assert_eq!(array, array_back);
 
         Ok(())
@@ -887,7 +879,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(PixelFormat::YUV420P))?;
+        let frame: AVFrame = (&array.clone().with_format(PixelFormat::YUV420P)).try_to_cv()?;
 
         // 验证 YUV 值
         unsafe {
@@ -956,7 +948,7 @@ mod tests {
         }
 
         // AVFrame -> Array3
-        let array_back: Array3<u8> = Array3::try_from_cv(&frame)?;
+        let array_back: Array3<u8> = (&frame).try_to_cv()?;
 
         // 验证转换回 RGB 的结果
         for y in 0..height {
@@ -1009,7 +1001,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(PixelFormat::GRAY8))?;
+        let frame: AVFrame = (&array.clone().with_format(PixelFormat::GRAY8)).try_to_cv()?;
 
         // 验证数据
         unsafe {
@@ -1031,7 +1023,7 @@ mod tests {
         }
 
         // AVFrame -> Array3
-        let array_back: Array3<u8> = Array3::try_from_cv(&frame)?;
+        let array_back: Array3<u8> = (&frame).try_to_cv()?;
         assert_eq!(array, array_back);
 
         Ok(())
@@ -1054,7 +1046,7 @@ mod tests {
         }
 
         // Array3 -> AVFrame
-        let frame = AVFrame::try_from_cv(array.clone().with_format(PixelFormat::RGBA))?;
+        let frame: AVFrame = (&array.clone().with_format(PixelFormat::RGBA)).try_to_cv()?;
 
         // 验证转换结果
         unsafe {
@@ -1079,7 +1071,7 @@ mod tests {
         }
 
         // AVFrame -> Array3
-        let array_back: Array3<u8> = Array3::try_from_cv(&frame)?;
+        let array_back: Array3<u8> = (&frame).try_to_cv()?;
         assert_eq!(array, array_back);
 
         Ok(())

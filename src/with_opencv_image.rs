@@ -1,39 +1,27 @@
 use crate::with_opencv::{MatExt, OpenCvElement};
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use crate::TryToCv;
 use anyhow::{Context, Error, Result};
 use opencv::prelude::*;
 use std::ops::Deref;
 
-// ImageBuffer -> Mat
-impl<P, Container> TryFromCv<image::ImageBuffer<P, Container>> for Mat
-where
-    P: image::Pixel,
-    P::Subpixel: OpenCvElement,
-    Container: Deref<Target = [P::Subpixel]> + Clone,
-{
-    type Error = Error;
-    fn try_from_cv(from: image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &ImageBuffer -> Mat
-impl<P, Container> TryFromCv<&image::ImageBuffer<P, Container>> for Mat
+impl<P, Container> TryToCv<Mat> for image::ImageBuffer<P, Container>
 where
     P: image::Pixel,
     P::Subpixel: OpenCvElement,
     Container: Deref<Target = [P::Subpixel]> + Clone,
 {
     type Error = Error;
-    fn try_from_cv(from: &image::ImageBuffer<P, Container>) -> Result<Self, Self::Error> {
-        let (width, height) = from.dimensions();
+
+    fn try_to_cv(&self) -> Result<Mat, Self::Error> {
+        let (width, height) = self.dimensions();
         let cv_type = opencv::core::CV_MAKETYPE(P::Subpixel::DEPTH, P::CHANNEL_COUNT as i32);
         let mat = unsafe {
             Mat::new_rows_cols_with_data_unsafe_def(
                 height as i32,           // 行数
                 width as i32,            // 列数
                 cv_type,                 // 类型
-                from.as_ptr() as *mut _, // image 数据
+                self.as_ptr() as *mut _, // image 数据
             )?
             .try_clone()?
         };
@@ -42,96 +30,79 @@ where
 }
 
 // &DynamicImage -> Mat
-impl TryFromCv<&image::DynamicImage> for Mat {
+impl TryToCv<Mat> for image::DynamicImage {
     type Error = Error;
 
-    fn try_from_cv(from: &image::DynamicImage) -> Result<Self, Self::Error> {
+    fn try_to_cv(&self) -> Result<Mat, Self::Error> {
         use image::DynamicImage;
 
-        let mat = match from {
-            DynamicImage::ImageLuma8(image) => image.try_into_cv()?,
-            DynamicImage::ImageLumaA8(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgb8(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgba8(image) => image.try_into_cv()?,
-            DynamicImage::ImageLuma16(image) => image.try_into_cv()?,
-            DynamicImage::ImageLumaA16(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgb16(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgba16(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgb32F(image) => image.try_into_cv()?,
-            DynamicImage::ImageRgba32F(image) => image.try_into_cv()?,
+        let mat = match self {
+            DynamicImage::ImageLuma8(image) => image.try_to_cv()?,
+            DynamicImage::ImageLumaA8(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgb8(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgba8(image) => image.try_to_cv()?,
+            DynamicImage::ImageLuma16(image) => image.try_to_cv()?,
+            DynamicImage::ImageLumaA16(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgb16(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgba16(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgb32F(image) => image.try_to_cv()?,
+            DynamicImage::ImageRgba32F(image) => image.try_to_cv()?,
             image => anyhow::bail!("the color type {:?} is not supported", image.color()),
         };
         Ok(mat)
     }
 }
 
-// DynamicImage -> Mat
-impl TryFromCv<image::DynamicImage> for Mat {
-    type Error = Error;
-    fn try_from_cv(from: image::DynamicImage) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &Mat -> DynamicImage
-impl TryFromCv<&Mat> for image::DynamicImage {
+impl TryToCv<image::DynamicImage> for Mat {
     type Error = Error;
 
-    fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
-        let rows = from.rows();
-        let cols = from.cols();
+    fn try_to_cv(&self) -> Result<image::DynamicImage, Self::Error> {
+        let rows = self.rows();
+        let cols = self.cols();
         anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
 
-        let depth = from.depth();
-        let n_channels = from.channels();
+        let depth = self.depth();
+        let n_channels = self.channels();
         let width = cols as u32;
         let height = rows as u32;
 
         let image: image::DynamicImage = match (depth, n_channels) {
-            (opencv::core::CV_8U, 1) => mat_to_image_buffer_gray::<u8>(from, width, height).into(),
+            (opencv::core::CV_8U, 1) => mat_to_image_buffer_gray::<u8>(self, width, height).into(),
             (opencv::core::CV_16U, 1) => {
-                mat_to_image_buffer_gray::<u16>(from, width, height).into()
+                mat_to_image_buffer_gray::<u16>(self, width, height).into()
             }
-            (opencv::core::CV_8U, 3) => mat_to_image_buffer_rgb::<u8>(from, width, height).into(),
-            (opencv::core::CV_16U, 3) => mat_to_image_buffer_rgb::<u16>(from, width, height).into(),
-            (opencv::core::CV_32F, 3) => mat_to_image_buffer_rgb::<f32>(from, width, height).into(),
-            _ => anyhow::bail!("Mat of type {} is not supported", from.type_name()),
+            (opencv::core::CV_8U, 3) => mat_to_image_buffer_rgb::<u8>(self, width, height).into(),
+            (opencv::core::CV_16U, 3) => mat_to_image_buffer_rgb::<u16>(self, width, height).into(),
+            (opencv::core::CV_32F, 3) => mat_to_image_buffer_rgb::<f32>(self, width, height).into(),
+            _ => anyhow::bail!("Mat of type {} is not supported", self.type_name()),
         };
 
         Ok(image)
     }
 }
 
-// Mat -> DynamicImage
-impl TryFromCv<Mat> for image::DynamicImage {
-    type Error = Error;
-
-    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &Mat -> gray ImageBuffer
-impl<T> TryFromCv<&Mat> for image::ImageBuffer<image::Luma<T>, Vec<T>>
+impl<T> TryToCv<image::ImageBuffer<image::Luma<T>, Vec<T>>> for Mat
 where
     image::Luma<T>: image::Pixel,
     T: OpenCvElement + image::Primitive + DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
-        let rows = from.rows();
-        let cols = from.cols();
+    fn try_to_cv(&self) -> Result<image::ImageBuffer<image::Luma<T>, Vec<T>>, Self::Error> {
+        let rows = self.rows();
+        let cols = self.cols();
         anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
 
-        let depth = from.depth();
-        let n_channels = from.channels();
+        let depth = self.depth();
+        let n_channels = self.channels();
         let width = cols as u32;
         let height = rows as u32;
 
@@ -141,42 +112,29 @@ where
         );
         anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
 
-        let image = mat_to_image_buffer_gray::<T>(from, width, height);
+        let image = mat_to_image_buffer_gray::<T>(self, width, height);
         Ok(image)
     }
 }
 
-// Mat -> gray ImageBuffer
-impl<T> TryFromCv<Mat> for image::ImageBuffer<image::Luma<T>, Vec<T>>
-where
-    image::Luma<T>: image::Pixel,
-    T: OpenCvElement + image::Primitive + DataType,
-{
-    type Error = Error;
-
-    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
-    }
-}
-
 // &Mat -> rgb ImageBuffer
-impl<T> TryFromCv<&Mat> for image::ImageBuffer<image::Rgb<T>, Vec<T>>
+impl<T> TryToCv<image::ImageBuffer<image::Rgb<T>, Vec<T>>> for Mat
 where
     image::Rgb<T>: image::Pixel<Subpixel = T>,
     T: OpenCvElement + image::Primitive + DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: &Mat) -> Result<Self, Self::Error> {
-        let rows = from.rows();
-        let cols = from.cols();
+    fn try_to_cv(&self) -> Result<image::ImageBuffer<image::Rgb<T>, Vec<T>>, Self::Error> {
+        let rows = self.rows();
+        let cols = self.cols();
         anyhow::ensure!(
             rows != -1 && cols != -1,
             "Mat with more than 2 dimensions is not supported."
         );
 
-        let depth = from.depth();
-        let n_channels = from.channels();
+        let depth = self.depth();
+        let n_channels = self.channels();
         let width = cols as u32;
         let height = rows as u32;
 
@@ -186,21 +144,72 @@ where
         );
         anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
 
-        let image = mat_to_image_buffer_rgb::<T>(from, width, height);
+        let image = mat_to_image_buffer_rgb::<T>(self, width, height);
         Ok(image)
     }
 }
 
-// Mat -> rgb ImageBuffer
-impl<T> TryFromCv<Mat> for image::ImageBuffer<image::Rgb<T>, Vec<T>>
+// &Mat -> rgba ImageBuffer
+impl<T> TryToCv<image::ImageBuffer<image::Rgba<T>, Vec<T>>> for Mat
 where
-    image::Rgb<T>: image::Pixel<Subpixel = T>,
+    image::Rgba<T>: image::Pixel<Subpixel = T>,
     T: OpenCvElement + image::Primitive + DataType,
 {
     type Error = Error;
 
-    fn try_from_cv(from: Mat) -> Result<Self, Self::Error> {
-        (&from).try_into_cv()
+    fn try_to_cv(&self) -> Result<image::ImageBuffer<image::Rgba<T>, Vec<T>>, Self::Error> {
+        let rows = self.rows();
+        let cols = self.cols();
+        anyhow::ensure!(
+            rows != -1 && cols != -1,
+            "Mat with more than 2 dimensions is not supported."
+        );
+
+        let depth = self.depth();
+        let n_channels = self.channels();
+        let width = cols as u32;
+        let height = rows as u32;
+
+        anyhow::ensure!(
+            n_channels == 4,
+            "Expect 4 channels, but get {n_channels} channels"
+        );
+        anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
+
+        let image = mat_to_image_buffer_rgba::<T>(self, width, height);
+        Ok(image)
+    }
+}
+
+// &Mat -> gray alpha ImageBuffer
+impl<T> TryToCv<image::ImageBuffer<image::LumaA<T>, Vec<T>>> for Mat
+where
+    image::LumaA<T>: image::Pixel<Subpixel = T>,
+    T: OpenCvElement + image::Primitive + DataType,
+{
+    type Error = Error;
+
+    fn try_to_cv(&self) -> Result<image::ImageBuffer<image::LumaA<T>, Vec<T>>, Self::Error> {
+        let rows = self.rows();
+        let cols = self.cols();
+        anyhow::ensure!(
+            rows != -1 && cols != -1,
+            "Mat with more than 2 dimensions is not supported."
+        );
+
+        let depth = self.depth();
+        let n_channels = self.channels();
+        let width = cols as u32;
+        let height = rows as u32;
+
+        anyhow::ensure!(
+            n_channels == 2,
+            "Expect 2 channels, but get {n_channels} channels"
+        );
+        anyhow::ensure!(depth == T::DEPTH, "Subpixel type is not supported");
+
+        let image = mat_to_image_buffer_gray_alpha::<T>(self, width, height);
+        Ok(image)
     }
 }
 
@@ -241,6 +250,50 @@ where
             let opencv::core::Point3_::<T> { x, y, z } =
                 *mat.at_2d(row as i32, col as i32).unwrap();
             image::Rgb([x, y, z])
+        }),
+    }
+}
+
+fn mat_to_image_buffer_rgba<T>(
+    mat: &Mat,
+    width: u32,
+    height: u32,
+) -> image::ImageBuffer<image::Rgba<T>, Vec<T>>
+where
+    T: image::Primitive + OpenCvElement + DataType,
+    image::Rgba<T>: image::Pixel<Subpixel = T>,
+{
+    type Image<T> = image::ImageBuffer<image::Rgba<T>, Vec<T>>;
+
+    match mat.as_slice::<T>() {
+        Ok(slice) => Image::<T>::from_vec(width, height, slice.to_vec()).unwrap(),
+        Err(_) => Image::<T>::from_fn(width, height, |col, row| {
+            let px = *mat.at_2d(row as i32, col as i32).unwrap();
+            // OpenCV 4 通道像素以 VecN 形式存储：[B, G, R, A] 或 [R, G, B, A]
+            // 这里按元素顺序直接拷贝，保持与 Mat 内部布局一致
+            let v: opencv::core::VecN<T, 4> = px;
+            image::Rgba([v[0], v[1], v[2], v[3]])
+        }),
+    }
+}
+
+fn mat_to_image_buffer_gray_alpha<T>(
+    mat: &Mat,
+    width: u32,
+    height: u32,
+) -> image::ImageBuffer<image::LumaA<T>, Vec<T>>
+where
+    T: image::Primitive + OpenCvElement + DataType,
+    image::LumaA<T>: image::Pixel<Subpixel = T>,
+{
+    type Image<T> = image::ImageBuffer<image::LumaA<T>, Vec<T>>;
+
+    match mat.as_slice::<T>() {
+        Ok(slice) => Image::<T>::from_vec(width, height, slice.to_vec()).unwrap(),
+        Err(_) => Image::<T>::from_fn(width, height, |col, row| {
+            let px = *mat.at_2d(row as i32, col as i32).unwrap();
+            let v: opencv::core::VecN<T, 2> = px;
+            image::LumaA([v[0], v[1]])
         }),
     }
 }
@@ -299,7 +352,7 @@ fn mat_to_image(mat: &Mat) -> Result<image::RgbImage> {
 mod tests {
     use super::*;
     use crate::with_opencv::MatExt;
-    use crate::TryIntoCv;
+    use crate::TryToCv;
     use anyhow::{Context, Result};
     use opencv::prelude::*;
 
@@ -311,8 +364,8 @@ mod tests {
         // gray
         {
             let mat = Mat::new_randn_2d(HEIGHT as i32, WIDTH as i32, opencv::core::CV_8UC1)?;
-            let image: image::GrayImage = (&mat).try_into_cv()?;
-            let mat2: Mat = (&image).try_into_cv()?;
+            let image: image::GrayImage = (&mat).try_to_cv()?;
+            let mat2: Mat = (&image).try_to_cv()?;
 
             itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: u8 = *mat.at_2d(row as i32, col as i32)?;
@@ -326,8 +379,8 @@ mod tests {
         // rgb
         {
             let mat = Mat::new_randn_2d(HEIGHT as i32, WIDTH as i32, opencv::core::CV_8UC3)?;
-            let image: image::RgbImage = (&mat).try_into_cv()?;
-            let mat2: Mat = (&image).try_into_cv()?;
+            let image: image::RgbImage = (&mat).try_to_cv()?;
+            let mat2: Mat = (&image).try_to_cv()?;
 
             itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: opencv::core::Point3_<u8> = *mat.at_2d(row as i32, col as i32)?;
@@ -457,6 +510,28 @@ mod tests {
         assert_eq!(mat.channels(), 3);
 
         println!("test_image_to_mat depth:{}", mat.depth());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_mat_to_rgba_and_gray_alpha() -> Result<()> {
+        // RGBA: Mat(CV_8UC4) -> RgbaImage
+        {
+            let mat = Mat::new_randn_2d(16, 16, opencv::core::CV_8UC4)?;
+            let image: image::RgbaImage = (&mat).try_to_cv()?;
+            anyhow::ensure!(image.width() == 16 && image.height() == 16);
+
+            let mat2: Mat = (&image).try_to_cv()?;
+            anyhow::ensure!(mat2.channels() == 4);
+        }
+
+        // GrayAlpha: Mat(CV_8UC2) -> GrayAlphaImage
+        {
+            let mat = Mat::new_randn_2d(16, 16, opencv::core::CV_8UC2)?;
+            let image: image::GrayAlphaImage = (&mat).try_to_cv()?;
+            anyhow::ensure!(image.width() == 16 && image.height() == 16);
+        }
 
         Ok(())
     }

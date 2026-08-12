@@ -1,45 +1,27 @@
-use crate::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use crate::ToCv;
 use opencv::core as cv_core;
 
-impl<T> FromCv<&imageproc::point::Point<T>> for cv_core::Point_<T>
+impl<T> ToCv<cv_core::Point_<T>> for imageproc::point::Point<T>
 where
     T: num_traits::Num + Copy,
 {
-    fn from_cv(from: &imageproc::point::Point<T>) -> Self {
-        cv_core::Point_::new(from.x, from.y)
+    fn to_cv(&self) -> cv_core::Point_<T> {
+        cv_core::Point_::new(self.x, self.y)
     }
 }
 
-impl<T> FromCv<imageproc::point::Point<T>> for cv_core::Point_<T>
+impl<T> ToCv<imageproc::point::Point<T>> for cv_core::Point_<T>
 where
     T: num_traits::Num + Copy,
 {
-    fn from_cv(from: imageproc::point::Point<T>) -> Self {
-        FromCv::from_cv(&from)
-    }
-}
-
-impl<T> FromCv<&cv_core::Point_<T>> for imageproc::point::Point<T>
-where
-    T: num_traits::Num + Copy,
-{
-    fn from_cv(from: &cv_core::Point_<T>) -> Self {
-        Self::new(from.x, from.y)
-    }
-}
-
-impl<T> FromCv<cv_core::Point_<T>> for imageproc::point::Point<T>
-where
-    T: num_traits::Num + Copy,
-{
-    fn from_cv(from: cv_core::Point_<T>) -> Self {
-        FromCv::from_cv(&from)
+    fn to_cv(&self) -> imageproc::point::Point<T> {
+        imageproc::point::Point::new(self.x, self.y)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{FromCv, IntoCv};
+    use crate::ToCv;
     use anyhow::Result;
     use approx::abs_diff_eq;
     use opencv::core as cv_core;
@@ -51,11 +33,10 @@ mod tests {
         let mut rng = rand::rng();
 
         for _ in 0..5000 {
-            // FromCv
             // opencv to imageproc
             {
                 let cv_point = cv_core::Point2d::new(rng.random(), rng.random());
-                let imageproc_point = imageproc::point::Point::<f64>::from_cv(&cv_point);
+                let imageproc_point: imageproc::point::Point<f64> = cv_point.to_cv();
                 anyhow::ensure!(
                     abs_diff_eq!(cv_point.x, imageproc_point.x)
                         && abs_diff_eq!(cv_point.y, imageproc_point.y),
@@ -67,31 +48,7 @@ mod tests {
             {
                 let imageproc_point =
                     imageproc::point::Point::<f64>::new(rng.random(), rng.random());
-                let cv_point = cv_core::Point2d::from_cv(&imageproc_point);
-                anyhow::ensure!(
-                    abs_diff_eq!(imageproc_point.x, cv_point.x)
-                        && abs_diff_eq!(imageproc_point.y, cv_point.y),
-                    "point conversion failed"
-                );
-            }
-
-            // IntoCv
-            // opencv to imageproc
-            {
-                let cv_point = cv_core::Point2d::new(rng.random(), rng.random());
-                let imageproc_point: imageproc::point::Point<f64> = cv_point.into_cv();
-                anyhow::ensure!(
-                    abs_diff_eq!(cv_point.x, imageproc_point.x)
-                        && abs_diff_eq!(cv_point.y, imageproc_point.y),
-                    "point conversion failed"
-                );
-            }
-
-            // imageproc to opencv
-            {
-                let imageproc_point =
-                    imageproc::point::Point::<f64>::new(rng.random(), rng.random());
-                let cv_point: cv_core::Point2d = imageproc_point.into_cv();
+                let cv_point: cv_core::Point2d = imageproc_point.to_cv();
                 anyhow::ensure!(
                     abs_diff_eq!(imageproc_point.x, cv_point.x)
                         && abs_diff_eq!(imageproc_point.y, cv_point.y),

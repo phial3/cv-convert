@@ -495,8 +495,8 @@ pub fn convert_pixel_format<T, U>(
     dst_fmt: PixelFormat,
 ) -> Result<Array3<U>>
 where
-    T: Copy + Clone + NumCast + Zero,
-    U: Copy + Clone + NumCast + Zero,
+    T: Copy + Clone + NumCast + Zero + 'static,
+    U: Copy + Clone + NumCast + Zero + 'static,
 {
     let (_height, _width, channels) = src.dim();
     if channels != src_fmt.channels() {
@@ -721,9 +721,19 @@ where
 /// Convert YUV planar formats to RGB (supports both RGB8 and RGB24)
 fn ndarray_yuv_to_rgb<T, U>(src: &Array3<T>, src_format: PixelFormat) -> Result<Array3<U>>
 where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
+    T: Clone + NumCast + Zero + 'static,
+    U: Clone + NumCast + Zero + 'static,
 {
+    // 420/422/444 且 8bit 数据：使用 yuvutils-rs 整帧转换，避免手写 BT.601 色彩空间的风险
+    if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u8>()
+        && matches!(
+            src_format,
+            PixelFormat::YUV420P | PixelFormat::YUV422P | PixelFormat::YUV444P
+        )
+    {
+        return yuv_array_to_rgb_with_yuvutils(src, src_format);
+    }
+
     let (height, width, _channels) = src.dim();
     let mut dst = Array3::<U>::zeros((height, width, 3));
 
@@ -765,9 +775,19 @@ where
 /// Convert RGB (RGB8 or RGB24) to YUV planar format
 fn ndarray_rgb_to_yuv<T, U>(src: &Array3<T>, dst_format: PixelFormat) -> Result<Array3<U>>
 where
-    T: Clone + NumCast + Zero,
-    U: Clone + NumCast + Zero,
+    T: Clone + NumCast + Zero + 'static,
+    U: Clone + NumCast + Zero + 'static,
 {
+    // 420/422/444 且 8bit 数据：使用 yuvutils-rs 整帧转换，避免手写 BT.601 色彩空间的风险
+    if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u8>()
+        && matches!(
+            dst_format,
+            PixelFormat::YUV420P | PixelFormat::YUV422P | PixelFormat::YUV444P
+        )
+    {
+        return rgb_array_to_yuv_with_yuvutils(src, dst_format);
+    }
+
     let (height, width, _channels) = src.dim();
 
     // Get UV plane dimensions based on format
@@ -834,6 +854,182 @@ where
     }
 
     Ok(dst)
+}
+
+/// 使用 yuvutils-rs 将 YUV 平面数组转换为 RGB 数组（仅 420/422/444，8bit 数据）。
+/// 复用成熟库的 BT.601 有限范围转换，避免手写色彩空间公式。
+fn yuv_array_to_rgb_with_yuvutils<T, U>(
+    src: &Array3<T>,
+    src_format: PixelFormat,
+) -> Result<Array3<U>>
+where
+    T: Clone + NumCast + Zero,
+    U: Clone + NumCast + Zero,
+{
+    use PixelFormat::*;
+    let (height, width, _) = src.dim();
+
+    let (sub_x, sub_y) = match src_format {
+        YUV420P => (2, 2),
+        YUV422P => (2, 1),
+        YUV444P => (1, 1),
+        _ => {
+            return Err(Error::msg(format!(
+                "yuvutils-rs 不支持 YUV 格式: {:?}",
+                src_format
+            )))
+        }
+    };
+    let uv_w = width.div_ceil(sub_x);
+    let uv_h = height.div_ceil(sub_y);
+
+    // 从 ndarray 的 [H, W, 3] 布局提取 y/u/v 连续平面
+    let mut y_plane = vec![0u8; width * height];
+    let mut u_plane = vec![0u8; uv_w * uv_h];
+    let mut v_plane = vec![0u8; uv_w * uv_h];
+    for r in 0..height {
+        for c in 0..width {
+            y_plane[r * width + c] = src[[r, c, 0]].to_f64().unwrap() as u8;
+            if r % sub_y == 0 && c % sub_x == 0 {
+                u_plane[(r / sub_y) * uv_w + c / sub_x] = src[[r, c, 1]].to_f64().unwrap() as u8;
+                v_plane[(r / sub_y) * uv_w + c / sub_x] = src[[r, c, 2]].to_f64().unwrap() as u8;
+            }
+        }
+    }
+
+    let image = yuvutils_rs::YuvPlanarImage {
+        y_plane: &y_plane,
+        y_stride: width as u32,
+        u_plane: &u_plane,
+        u_stride: uv_w as u32,
+        v_plane: &v_plane,
+        v_stride: uv_w as u32,
+        width: width as u32,
+        height: height as u32,
+    };
+
+    let rgb_stride = (width * 3) as u32;
+    let mut rgb = vec![0u8; width * height * 3];
+    match src_format {
+        YUV420P => yuvutils_rs::yuv420_to_rgb(
+            &image,
+            &mut rgb,
+            rgb_stride,
+            yuvutils_rs::YuvRange::Limited,
+            yuvutils_rs::YuvStandardMatrix::Bt601,
+        )?,
+        YUV422P => yuvutils_rs::yuv422_to_rgb(
+            &image,
+            &mut rgb,
+            rgb_stride,
+            yuvutils_rs::YuvRange::Limited,
+            yuvutils_rs::YuvStandardMatrix::Bt601,
+        )?,
+        YUV444P => yuvutils_rs::yuv444_to_rgb(
+            &image,
+            &mut rgb,
+            rgb_stride,
+            yuvutils_rs::YuvRange::Limited,
+            yuvutils_rs::YuvStandardMatrix::Bt601,
+        )?,
+        _ => unreachable!(),
+    }
+
+    Ok(Array3::from_shape_fn((height, width, 3), |(r, c, ch)| {
+        NumCast::from(rgb[r * width * 3 + c * 3 + ch]).unwrap()
+    }))
+}
+
+/// 使用 yuvutils-rs 将 RGB 数组转换为 YUV 平面数组（仅 420/422/444，8bit 数据）。
+/// 复用成熟库的 BT.601 有限范围转换与亚采样，避免手写色彩空间公式。
+fn rgb_array_to_yuv_with_yuvutils<T, U>(
+    src: &Array3<T>,
+    dst_format: PixelFormat,
+) -> Result<Array3<U>>
+where
+    T: Clone + NumCast + Zero,
+    U: Clone + NumCast + Zero,
+{
+    use PixelFormat::*;
+    let (height, width, _) = src.dim();
+
+    let (sub_x, sub_y) = match dst_format {
+        YUV420P => (2, 2),
+        YUV422P => (2, 1),
+        YUV444P => (1, 1),
+        _ => {
+            return Err(Error::msg(format!(
+                "yuvutils-rs 不支持 YUV 格式: {:?}",
+                dst_format
+            )))
+        }
+    };
+    let uv_w = width.div_ceil(sub_x);
+    let uv_h = height.div_ceil(sub_y);
+
+    // 先将 ndarray 的 RGB 逐像素提取为连续 rgb 缓冲
+    let rgb_stride = (width * 3) as u32;
+    let mut rgb = vec![0u8; width * height * 3];
+    for r in 0..height {
+        for c in 0..width {
+            rgb[r * width * 3 + c * 3 + 0] = src[[r, c, 0]].to_f64().unwrap() as u8;
+            rgb[r * width * 3 + c * 3 + 1] = src[[r, c, 1]].to_f64().unwrap() as u8;
+            rgb[r * width * 3 + c * 3 + 2] = src[[r, c, 2]].to_f64().unwrap() as u8;
+        }
+    }
+
+    let mut y_plane = vec![0u8; width * height];
+    let mut u_plane = vec![0u8; uv_w * uv_h];
+    let mut v_plane = vec![0u8; uv_w * uv_h];
+    {
+        let mut image = yuvutils_rs::YuvPlanarImageMut {
+            y_plane: yuvutils_rs::BufferStoreMut::Borrowed(&mut y_plane),
+            y_stride: width as u32,
+            u_plane: yuvutils_rs::BufferStoreMut::Borrowed(&mut u_plane),
+            u_stride: uv_w as u32,
+            v_plane: yuvutils_rs::BufferStoreMut::Borrowed(&mut v_plane),
+            v_stride: uv_w as u32,
+            width: width as u32,
+            height: height as u32,
+        };
+        match dst_format {
+            YUV420P => yuvutils_rs::rgb_to_yuv420(
+                &mut image,
+                &rgb,
+                rgb_stride,
+                yuvutils_rs::YuvRange::Limited,
+                yuvutils_rs::YuvStandardMatrix::Bt601,
+                yuvutils_rs::YuvConversionMode::Balanced,
+            )?,
+            YUV422P => yuvutils_rs::rgb_to_yuv422(
+                &mut image,
+                &rgb,
+                rgb_stride,
+                yuvutils_rs::YuvRange::Limited,
+                yuvutils_rs::YuvStandardMatrix::Bt601,
+                yuvutils_rs::YuvConversionMode::Balanced,
+            )?,
+            YUV444P => yuvutils_rs::rgb_to_yuv444(
+                &mut image,
+                &rgb,
+                rgb_stride,
+                yuvutils_rs::YuvRange::Limited,
+                yuvutils_rs::YuvStandardMatrix::Bt601,
+                yuvutils_rs::YuvConversionMode::Balanced,
+            )?,
+            _ => unreachable!(),
+        }
+    }
+
+    Ok(Array3::from_shape_fn(
+        (height, width, 3),
+        |(r, c, ch)| match ch {
+            0 => NumCast::from(y_plane[r * width + c]).unwrap(),
+            1 => NumCast::from(u_plane[(r / sub_y) * uv_w + c / sub_x]).unwrap(),
+            2 => NumCast::from(v_plane[(r / sub_y) * uv_w + c / sub_x]).unwrap(),
+            _ => unreachable!(),
+        },
+    ))
 }
 
 #[cfg(test)]
