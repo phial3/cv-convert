@@ -68,24 +68,24 @@ mod tests {
     #[test]
     fn image_buffer_to_dynamic_image() {
         let rgb = RgbImage::from_pixel(2, 2, Rgb([1u8, 2, 3]));
-        let dyn_image: DynamicImage = (&rgb).to_cv();
+        let dyn_image: DynamicImage = rgb.to_cv();
         assert!(matches!(dyn_image, DynamicImage::ImageRgb8(_)));
 
         let rgba = RgbaImage::from_pixel(2, 2, Rgba([1u8, 2, 3, 4]));
-        let dyn_image: DynamicImage = (&rgba).to_cv();
+        let dyn_image: DynamicImage = rgba.to_cv();
         assert!(matches!(dyn_image, DynamicImage::ImageRgba8(_)));
 
         let gray = GrayImage::from_pixel(2, 2, Luma([128u8]));
-        let dyn_image: DynamicImage = (&gray).to_cv();
+        let dyn_image: DynamicImage = gray.to_cv();
         assert!(matches!(dyn_image, DynamicImage::ImageLuma8(_)));
     }
 
     #[test]
     fn dynamic_image_to_image_buffer() {
         let rgb = RgbImage::from_pixel(2, 2, Rgb([1u8, 2, 3]));
-        let dyn_image: DynamicImage = (&rgb).to_cv();
+        let dyn_image: DynamicImage = rgb.to_cv();
 
-        let back: RgbImage = (&dyn_image).try_to_cv().unwrap();
+        let back: RgbImage = dyn_image.try_to_cv().unwrap();
         assert_eq!(back.dimensions(), (2, 2));
         assert_eq!(back.get_pixel(0, 0), &Rgb([1u8, 2, 3]));
     }

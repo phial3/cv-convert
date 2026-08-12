@@ -972,7 +972,7 @@ where
     let mut rgb = vec![0u8; width * height * 3];
     for r in 0..height {
         for c in 0..width {
-            rgb[r * width * 3 + c * 3 + 0] = src[[r, c, 0]].to_f64().unwrap() as u8;
+            rgb[r * width * 3 + c * 3] = src[[r, c, 0]].to_f64().unwrap() as u8;
             rgb[r * width * 3 + c * 3 + 1] = src[[r, c, 1]].to_f64().unwrap() as u8;
             rgb[r * width * 3 + c * 3 + 2] = src[[r, c, 2]].to_f64().unwrap() as u8;
         }

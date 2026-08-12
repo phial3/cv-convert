@@ -19,10 +19,10 @@ mod tests {
     #[test]
     fn point_tuple_roundtrip() {
         let p = imageproc::point::Point::new(3i32, 4);
-        let tuple: (i32, i32) = (&p).to_cv();
+        let tuple: (i32, i32) = p.to_cv();
         assert_eq!(tuple, (3, 4));
 
-        let back: imageproc::point::Point<i32> = (&tuple).to_cv();
+        let back: imageproc::point::Point<i32> = tuple.to_cv();
         assert_eq!(back, p);
     }
 }

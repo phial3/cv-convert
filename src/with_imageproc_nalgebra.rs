@@ -20,10 +20,10 @@ mod tests {
     #[test]
     fn point_nalgebra_roundtrip() {
         let p = imageproc::point::Point::new(3i32, 4);
-        let na_p: na::Point2<i32> = (&p).to_cv();
+        let na_p: na::Point2<i32> = p.to_cv();
         assert_eq!((na_p.x, na_p.y), (3, 4));
 
-        let back: imageproc::point::Point<i32> = (&na_p).to_cv();
+        let back: imageproc::point::Point<i32> = na_p.to_cv();
         assert_eq!(back, p);
     }
 }

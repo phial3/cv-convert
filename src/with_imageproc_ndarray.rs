@@ -30,10 +30,10 @@ mod tests {
     #[test]
     fn point_ndarray_roundtrip() {
         let p = imageproc::point::Point::new(3i32, 4);
-        let arr: Array1<i32> = (&p).to_cv();
+        let arr: Array1<i32> = p.to_cv();
         assert_eq!(arr.to_vec(), vec![3, 4]);
 
-        let back: imageproc::point::Point<i32> = (&arr).try_to_cv().unwrap();
+        let back: imageproc::point::Point<i32> = arr.try_to_cv().unwrap();
         assert_eq!(back, p);
     }
 }

@@ -133,30 +133,30 @@ mod tests {
     #[test]
     fn vector_roundtrip() {
         let v = na::DVector::from_vec(vec![1.0f64, 2.0, 3.0]);
-        let arr: Array1<f64> = (&v).try_to_cv().unwrap();
+        let arr: Array1<f64> = v.try_to_cv().unwrap();
         assert_eq!(arr.to_vec(), vec![1.0, 2.0, 3.0]);
 
-        let back: na::DVector<f64> = (&arr).to_cv();
+        let back: na::DVector<f64> = arr.to_cv();
         assert_eq!(back, v);
     }
 
     #[test]
     fn matrix_roundtrip() {
         let m = na::DMatrix::from_row_slice(2, 3, &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let arr: Array2<f64> = (&m).try_to_cv().unwrap();
+        let arr: Array2<f64> = m.try_to_cv().unwrap();
         assert_eq!(arr.dim(), (2, 3));
 
-        let back: na::DMatrix<f64> = (&arr).to_cv();
+        let back: na::DMatrix<f64> = arr.to_cv();
         assert_eq!(back, m);
     }
 
     #[test]
     fn svector_roundtrip() {
         let v = na::SVector::<f64, 3>::new(1.0, 2.0, 3.0);
-        let arr: Array1<f64> = (&v).to_cv();
+        let arr: Array1<f64> = v.to_cv();
         assert_eq!(arr.to_vec(), vec![1.0, 2.0, 3.0]);
 
-        let back: na::SVector<f64, 3> = (&arr).try_to_cv().unwrap();
+        let back: na::SVector<f64, 3> = arr.try_to_cv().unwrap();
         assert_eq!(back, v);
 
         // 尺寸不匹配应报错
@@ -167,10 +167,10 @@ mod tests {
     #[test]
     fn smatrix_roundtrip() {
         let m = na::SMatrix::<f64, 2, 3>::from_row_slice(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let arr: Array2<f64> = (&m).to_cv();
+        let arr: Array2<f64> = m.to_cv();
         assert_eq!(arr.dim(), (2, 3));
 
-        let back: na::SMatrix<f64, 2, 3> = (&arr).try_to_cv().unwrap();
+        let back: na::SMatrix<f64, 2, 3> = arr.try_to_cv().unwrap();
         assert_eq!(back, m);
 
         // 形状不匹配应报错

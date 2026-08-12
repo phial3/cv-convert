@@ -81,20 +81,20 @@ mod tests {
     #[test]
     fn point2_vector2() {
         let p = na::Point2::new(1.0f64, 2.0);
-        let v: na::Vector2<f64> = (&p).to_cv();
+        let v: na::Vector2<f64> = p.to_cv();
         assert!(abs_diff_eq!(v.x, 1.0) && abs_diff_eq!(v.y, 2.0));
 
-        let back: na::Point2<f64> = (&v).to_cv();
+        let back: na::Point2<f64> = v.to_cv();
         assert_eq!(back, p);
     }
 
     #[test]
     fn point3_vector3() {
         let p = na::Point3::new(1.0f64, 2.0, 3.0);
-        let v: na::Vector3<f64> = (&p).to_cv();
+        let v: na::Vector3<f64> = p.to_cv();
         assert!(abs_diff_eq!(v.z, 3.0));
 
-        let back: na::Point3<f64> = (&v).to_cv();
+        let back: na::Point3<f64> = v.to_cv();
         assert_eq!(back, p);
     }
 }

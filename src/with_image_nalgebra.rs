@@ -56,40 +56,40 @@ mod tests {
     #[test]
     fn rgb_vector3_roundtrip() {
         let rgb = image::Rgb([1u8, 2, 3]);
-        let v: na::Vector3<u8> = (&rgb).to_cv();
+        let v: na::Vector3<u8> = rgb.to_cv();
         assert_eq!((v.x, v.y, v.z), (1, 2, 3));
 
-        let back: image::Rgb<u8> = (&v).to_cv();
+        let back: image::Rgb<u8> = v.to_cv();
         assert_eq!(back, rgb);
     }
 
     #[test]
     fn rgba_vector4_roundtrip() {
         let rgba = image::Rgba([1u8, 2, 3, 4]);
-        let v: na::Vector4<u8> = (&rgba).to_cv();
+        let v: na::Vector4<u8> = rgba.to_cv();
         assert_eq!((v.x, v.y, v.z, v.w), (1, 2, 3, 4));
 
-        let back: image::Rgba<u8> = (&v).to_cv();
+        let back: image::Rgba<u8> = v.to_cv();
         assert_eq!(back, rgba);
     }
 
     #[test]
     fn luma_vector1_roundtrip() {
         let luma = image::Luma([128u8]);
-        let v: na::Vector1<u8> = (&luma).to_cv();
+        let v: na::Vector1<u8> = luma.to_cv();
         assert_eq!(v.x, 128);
 
-        let back: image::Luma<u8> = (&v).to_cv();
+        let back: image::Luma<u8> = v.to_cv();
         assert_eq!(back, luma);
     }
 
     #[test]
     fn luma_alpha_vector2_roundtrip() {
         let luma_alpha = image::LumaA([128u8, 200]);
-        let v: na::Vector2<u8> = (&luma_alpha).to_cv();
+        let v: na::Vector2<u8> = luma_alpha.to_cv();
         assert_eq!((v.x, v.y), (128, 200));
 
-        let back: image::LumaA<u8> = (&v).to_cv();
+        let back: image::LumaA<u8> = v.to_cv();
         assert_eq!(back, luma_alpha);
     }
 }
