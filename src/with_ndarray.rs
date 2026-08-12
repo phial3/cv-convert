@@ -1,297 +1,34 @@
-use crate::pixel::PixelFormat;
+use crate::pixel::{PixelFamily, PixelFormat, PixelType};
 use anyhow::{Error, Result};
 use ndarray::Array3;
 use num_traits::{NumCast, Zero};
 
-/// 像素格式 for ndarray
-pub use pix_fmt::*;
-mod pix_fmt {
-    use super::*;
-    use std::fmt::Debug;
-
-    pub trait PixelType: Copy + Clone + NumCast + Zero + 'static {}
-    impl PixelType for u8 {}
-    impl PixelType for u16 {}
-    impl PixelType for i16 {}
-    impl PixelType for i32 {}
-    impl PixelType for f32 {}
-    impl PixelType for f64 {}
-
-    pub trait FramePixel: Sized + Clone + Debug {
-        /// 获取像素格式
-        fn pix_fmt(&self) -> i32;
-        /// 获取通道数
-        fn channels(&self) -> usize;
-        /// 获取每个通道的位深
-        fn bits_per_channel(&self) -> u8;
-        /// 获取像素格式对应的字节数
-        fn bits_per_pixel(&self) -> u32;
-        /// Get UV plane dimensions based on format
-        fn yuv_params(&self) -> Option<(YUVParams, UVDimensions)>;
-    }
-
-    #[derive(Debug, Clone, Copy)]
-    pub struct YUVParams {
-        pub subsample_x: u32, // 水平子采样指数
-        pub subsample_y: u32, // 垂直子采样指数
-    }
-
-    #[derive(Debug, Clone, Copy)]
-    pub struct UVDimensions {
-        pub width: usize,  // UV平面实际宽度
-        pub height: usize, // UV平面实际高度
-    }
-
-    impl FramePixel for PixelFormat {
-        fn pix_fmt(&self) -> i32 {
-            match self {
-                Self::RGB4 => 21,
-                Self::RGB8 => 20,
-                Self::RGB24 => 2,
-                // Self::RGB32 => 28, //
-                Self::BGRA => 28, //
-                Self::BGR4 => 18,
-                Self::BGR8 => 17,
-                Self::BGR24 => 3,
-                // Self::BGR32 => 26, //
-                Self::RGBA => 26, //
-                Self::GRAY8 => 8,
-                Self::YUV410P => 6,
-                Self::YUV411P => 7,
-                Self::YUV420P => 0,
-                Self::YUV422P => 4,
-                Self::YUV440P => 31,
-                Self::YUV444P => 5,
-                Self::YUYV422 => 1,
-
-                _ => {
-                    panic!("Unsupported pixel format: {}", self)
-                }
-            }
-        }
-
-        fn channels(&self) -> usize {
-            match self {
-                Self::GRAY8 => 1,
-                Self::RGB4 | Self::RGB8 | Self::RGB24 | Self::BGR4 | Self::BGR8 | Self::BGR24 => 3,
-                Self::RGBA | Self::BGRA => 4,
-                Self::YUV410P
-                | Self::YUV411P
-                | Self::YUV420P
-                | Self::YUV422P
-                | Self::YUV440P
-                | Self::YUV444P
-                | Self::YUYV422 => 3,
-
-                _ => {
-                    panic!("Unsupported pixel format: {}", self)
-                }
-            }
-        }
-
-        fn bits_per_channel(&self) -> u8 {
-            match self {
-                // RGB4/BGR4 每个通道实际是1.33位(4位总共表示RGB)
-                Self::RGB4 | Self::BGR4 => 1,
-                // RGB8/BGR8 每个通道实际是2.67位(8位总共表示RGB)
-                Self::RGB8 | Self::BGR8 => 2, // 修改为2位/通道
-                Self::RGB24 | Self::BGR24 | Self::RGBA | Self::BGRA => 8,
-                Self::GRAY8 => 8,
-                Self::YUV410P
-                | Self::YUV411P
-                | Self::YUV420P
-                | Self::YUV422P
-                | Self::YUV440P
-                | Self::YUV444P
-                | Self::YUYV422 => 8,
-
-                _ => {
-                    panic!("Unsupported pixel format: {}", self)
-                }
-            }
-        }
-
-        fn bits_per_pixel(&self) -> u32 {
-            match self {
-                // RGB/BGR 格式
-                Self::RGB4 | Self::BGR4 => 4,
-                Self::RGB8 | Self::BGR8 => 8,
-                Self::RGB24 | Self::BGR24 => 24,
-
-                // RGBA/BGRA 格式
-                Self::RGBA | Self::BGRA => 32,
-
-                // Gray 格式
-                Self::GRAY8 => 8,
-
-                // YUV 格式
-                Self::YUV410P => {
-                    // Y平面 8位 + U/V平面各2位 (1/16大小)
-                    // (4 + 1 + 1) * 1.66
-                    10
-                }
-                Self::YUV411P => {
-                    // Y平面 8位 + U/V平面各2位 (1/4宽度)
-                    // (4 + 1 + 1) * 2
-                    12
-                }
-                Self::YUV420P => {
-                    // Y平面 8位 + U/V平面各2位 (1/4大小)
-                    // (4 + 1 + 1) * 2
-                    12
-                }
-                Self::YUV422P => {
-                    // Y平面 8位 + U/V平面各4位 (1/2宽度)
-                    // (4 + 2 + 2) * 2
-                    16
-                }
-                Self::YUV440P => {
-                    // Y平面 8位 + U/V平面各4位 (1/2高度)
-                    // (4 + 2 + 2) * 2
-                    16
-                }
-                Self::YUV444P => {
-                    // Y、U、V平面各8位
-                    // 8 + 8 + 8
-                    24
-                }
-                Self::YUYV422 => {
-                    // 打包格式：每两个像素共用一组UV分量
-                    // 每两个像素: Y1 U Y2 V = 32位
-                    // 16 bits per pixel in packed format
-                    16
-                }
-
-                _ => {
-                    panic!("Unsupported pixel format: {}", self)
-                }
-            }
-        }
-
-        fn yuv_params(&self) -> Option<(YUVParams, UVDimensions)> {
-            match self {
-                Self::YUV410P => {
-                    // 4:1:0 - 色度分量水平和垂直都缩减为 1/4
-                    Some((
-                        YUVParams {
-                            subsample_x: 2, // 水平缩减 4 倍 (2^2)
-                            subsample_y: 2, // 垂直缩减 4 倍 (2^2)
-                        },
-                        UVDimensions {
-                            width: 4,
-                            height: 4,
-                        },
-                    ))
-                }
-                Self::YUV411P => {
-                    // 4:1:1 - 色度分量水平缩减为 1/4，垂直不缩减
-                    Some((
-                        YUVParams {
-                            subsample_x: 2, // 水平缩减 4 倍 (2^2)
-                            subsample_y: 0, // 垂直不缩减 (2^0)
-                        },
-                        UVDimensions {
-                            width: 4,
-                            height: 1,
-                        },
-                    ))
-                }
-                Self::YUV420P => {
-                    // 4:2:0 - 色度分量水平和垂直都缩减为 1/2
-                    Some((
-                        YUVParams {
-                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
-                            subsample_y: 1, // 垂直缩减 2 倍 (2^1)
-                        },
-                        UVDimensions {
-                            width: 2,
-                            height: 2,
-                        },
-                    ))
-                }
-                Self::YUV422P => {
-                    // 4:2:2 - 色度分量水平缩减为 1/2，垂直不缩减
-                    Some((
-                        YUVParams {
-                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
-                            subsample_y: 0, // 垂直不缩减 (2^0)
-                        },
-                        UVDimensions {
-                            width: 2,
-                            height: 1,
-                        },
-                    ))
-                }
-                Self::YUV440P => {
-                    // 4:4:0 - 色度分量水平不缩减，垂直缩减为 1/2
-                    Some((
-                        YUVParams {
-                            subsample_x: 0, // 水平不缩减 (2^0)
-                            subsample_y: 1, // 垂直缩减 2 倍 (2^1)
-                        },
-                        UVDimensions {
-                            width: 1,
-                            height: 2,
-                        },
-                    ))
-                }
-                Self::YUV444P => {
-                    // 4:4:4 - 色度分量水平和垂直都不缩减
-                    Some((
-                        YUVParams {
-                            subsample_x: 0, // 水平不缩减 (2^0)
-                            subsample_y: 0, // 垂直不缩减 (2^0)
-                        },
-                        UVDimensions {
-                            width: 1,
-                            height: 1,
-                        },
-                    ))
-                }
-                Self::YUYV422 => {
-                    // 4:2:2 - 色度分量水平缩减为 1/2，垂直不缩减
-                    Some((
-                        YUVParams {
-                            subsample_x: 1, // 水平缩减 2 倍 (2^1)
-                            subsample_y: 0, // 垂直不缩减 (2^0)
-                        },
-                        UVDimensions {
-                            width: 2,
-                            height: 1,
-                        },
-                    ))
-                }
-                _ => None,
-            }
-        }
-    }
-}
-
 /// 为 Array3 添加像素格式标记的扩展 trait
 pub use array_ext::*;
 mod array_ext {
-    use super::{FramePixel, PixelType};
+    use super::{NumCast, PixelType, Zero};
+    use crate::pixel::PixelFormat;
     use ndarray::Array3;
 
     // 为Array3 添加像素格式标记的扩展 trait
     pub trait ArrayExt<T: PixelType> {
-        fn with_format<F: FramePixel>(self, pixel: F) -> ArrayWithFormat<T, F>;
+        fn with_format(self, pixel: PixelFormat) -> ArrayWithFormat<T>;
     }
 
     // 为所有满足 PixelType 的类型 T 实现 ArrayExt
     impl<T: PixelType> ArrayExt<T> for Array3<T> {
-        fn with_format<F: FramePixel>(self, pixel: F) -> ArrayWithFormat<T, F> {
+        fn with_format(self, pixel: PixelFormat) -> ArrayWithFormat<T> {
             ArrayWithFormat { array: self, pixel }
         }
     }
 
     /// 包装Array3，携带像素格式信息
-    pub struct ArrayWithFormat<T: PixelType, F: FramePixel> {
+    pub struct ArrayWithFormat<T: PixelType> {
         pub array: Array3<T>,
-        pub pixel: F,
+        pub pixel: PixelFormat,
     }
 
-    impl<T: PixelType, F: FramePixel> ArrayWithFormat<T, F> {
+    impl<T: PixelType> ArrayWithFormat<T> {
         pub fn into_inner(self) -> Array3<T> {
             self.array
         }
@@ -738,15 +475,10 @@ where
     let mut dst = Array3::<U>::zeros((height, width, 3));
 
     // Get UV dimensions
-    let yuv_params = src_format.yuv_params();
-    if yuv_params.is_none() {
-        return Err(Error::msg(format!(
-            "Unsupported YUV format: {:?}",
-            src_format
-        )));
-    }
-    let (_params, dimensions) = yuv_params.unwrap();
-    let (uv_width_ratio, uv_height_ratio) = (dimensions.width, dimensions.height);
+    let (subsample_x, subsample_y) = src_format.yuv_params().ok_or_else(|| {
+        Error::msg(format!("Unsupported YUV format: {:?}", src_format))
+    })?;
+    let (uv_width_ratio, uv_height_ratio) = (1usize << subsample_x, 1usize << subsample_y);
 
     for y in 0..height {
         for x in 0..width {
@@ -791,15 +523,10 @@ where
     let (height, width, _channels) = src.dim();
 
     // Get UV plane dimensions based on format
-    let yuv_params = dst_format.yuv_params();
-    if yuv_params.is_none() {
-        return Err(Error::msg(format!(
-            "Unsupported to YUV format: {:?}",
-            dst_format
-        )));
-    }
-    let (_params, dimensions) = yuv_params.unwrap();
-    let (uv_width_ratio, uv_height_ratio) = (dimensions.width, dimensions.height);
+    let (subsample_x, subsample_y) = dst_format.yuv_params().ok_or_else(|| {
+        Error::msg(format!("Unsupported to YUV format: {:?}", dst_format))
+    })?;
+    let (uv_width_ratio, uv_height_ratio) = (1usize << subsample_x, 1usize << subsample_y);
 
     let uv_height = height.div_ceil(uv_height_ratio);
     let _uv_width = width.div_ceil(uv_width_ratio);

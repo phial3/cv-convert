@@ -1,7 +1,19 @@
 # cv-convert
-Convert computer vision data types in Rust
 
-reference: [jerry73204](https://github.com/jerry73204/rust-cv-convert)
+Convert computer vision data types in Rust.
+
+A fork of [jerry73204/rust-cv-convert](https://github.com/jerry73204/rust-cv-convert) that extends
+the original crate with additional type conversions, notably FFmpeg (`AVFrame`) support.
+
+## Supported crates
+
+- [image](https://crates.io/crates/image)
+- [imageproc](https://crates.io/crates/imageproc)
+- [nalgebra](https://crates.io/crates/nalgebra)
+- [ndarray](https://crates.io/crates/ndarray)
+- [opencv](https://crates.io/crates/opencv)
+- [rsmpeg](https://crates.io/crates/rsmpeg)
+- [tch](https://crates.io/crates/tch)
 
 ## Concept
 
@@ -44,13 +56,13 @@ classDef tensor fill:#F3E5F5,stroke:#9C27B0;
 ```
 
 > 异常处理矩阵：
-> 
-| 转换路径 |	可能异常	|解决方案 |
-|---------  | ------- | ------ |
-AVFrame→Mat	    | 色彩空间不匹配	|自动插入sws_scale转换上下文
-Image→ndarray   | 通道顺序差异(RGB vs BGR)	| 提供convert_channels特性方法
-Mat→Tensor	    | 内存对齐问题	| 使用aligned_alloc分配器
 
+| 转换路径    | 可能异常         | 解决方案                             |
+| ----------- | ---------------- | ------------------------------------ |
+| AVFrame→Mat | 色彩空间不匹配   | 自动插入 sws_scale 转换上下文        |
+| YUV→RGB     | 有限范围/色彩标准 | `ndarray` 走 yuvutils-rs，`rsmpeg` 走 ffmpeg sws_scale |
+| Image→ndarray | 通道顺序差异(RGB vs BGR) | 提供 convert_channels 特性方法 |
+| Mat→Tensor  | 内存对齐问题     | 使用 aligned_alloc 分配器            |
 
 ```mermaid
 graph TD
@@ -83,71 +95,112 @@ E -->|视频编码| T[转AVFrame]
 
 ## Usage
 
+By default the `image`, `imageproc`, `nalgebra` and `ndarray` features are enabled. Install the
+crate (or fork) from git:
+
 ```toml
 [dependencies]
 cv-convert = { git = "https://github.com/phial3/cv-convert", branch = "main" }
 ```
 
-## Features
-- `default`: enable `image` + `imageproc` + `nalgebra` + `ndarray`
-- `tch`: optional,  (System Required installation: [tch](https://crates.io/crates/tch))
-- `opencv`: optional, (System Required installation: [opencv](https://crates.io/crates/opencv))
-- `rsmpeg`: optional, (System Required installation: [rsmpeg](https://crates.io/crates/rsmpeg))
-- `full` : enable `tch` + `opencv` + `rsmpeg`
-- `image`: optional, enable [image](https://crates.io/crates/image)
-- `imageproc`: optional, enable [imageproc](https://crates.io/crates/imageproc)
-- `nalgebra`: optional, enable [nalgebra](https://crates.io/crates/nalgebra)
-- `ndarray`: optional, enable [ndarray](https://crates.io/crates/ndarray)
+To enable a specific set of converted crates, disable the default features and list the ones
+you want:
+
+```toml
+[dependencies.cv-convert]
+git = "https://github.com/phial3/cv-convert"
+branch = "main"
+default-features = false
+features = [
+    "image",
+    "imageproc",
+    "nalgebra",
+    "ndarray",
+    "opencv",
+    "tch",
+    "rsmpeg",
+]
+```
+
+## Available Features
+
+### Core library features
+
+- `image` - Enable [image](https://crates.io/crates/image) crate support
+- `imageproc` - Enable [imageproc](https://crates.io/crates/imageproc) crate support
+- `nalgebra` - Enable [nalgebra](https://crates.io/crates/nalgebra) crate support
+- `ndarray` - Enable [ndarray](https://crates.io/crates/ndarray) crate support (pulls in `yuvutils-rs` for YUV conversions)
+- `opencv` - Enable [opencv](https://crates.io/crates/opencv) crate support
+- `tch` - Enable [tch](https://crates.io/crates/tch) crate support
+- `rsmpeg` - Enable [rsmpeg](https://crates.io/crates/rsmpeg) crate support
+
+### Feature groups
+
+- `default` - `image` + `imageproc` + `nalgebra` + `ndarray`
+- `full` - `tch` + `opencv` + `rsmpeg`
+- `test-tch` - `tch` with `download-libtorch` (used for tests)
+
+### System dependencies
+
+The following features require system libraries to be installed:
+
+- `opencv` - OpenCV (linked via `clang-runtime`)
+- `tch` - libtorch
+- `rsmpeg` - FFmpeg (linked via `link_system_ffmpeg`)
 
 ## Examples
 
-The crate provides `FromCv`, `TryFromCv`, `IntoCv`, `TryIntoCv` traits, which are similar to standard library's `From` and `Into`.
+The crate provides `ToCv`, `TryToCv`, `AsRefCv`, `TryAsRefCv` traits, which are similar to the
+standard library's `Into`, `TryInto`, `AsRef` and `TryAsRef`.
 
 ```rust,ignore,no_run
-use cv_convert::{FromCv, IntoCv, TryFromCv, TryIntoCv};
+use cv_convert::{ToCv, TryToCv};
 use nalgebra as na;
 use opencv as cv;
 
-// FromCv
+// ToCv - infallible conversion
 let cv_point = cv::core::Point2d::new(1.0, 3.0);
-let na_points = na::Point2::<f64>::from_cv(&cv_point);
+let na_point: na::Point2<f64> = cv_point.to_cv();
 
-// IntoCv
-let cv_point = cv::core::Point2d::new(1.0, 3.0);
-let na_points: na::Point2<f64> = cv_point.into_cv();
+// ToCv - the other direction
+let na_point = na::Point2::<f64>::new(1.0, 3.0);
+let cv_point: cv::core::Point2d = na_point.to_cv();
 
-// TryFromCv
+// TryToCv - fallible conversion
 let na_mat = na::DMatrix::from_vec(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-let cv_mat = cv::core::Mat::try_from_cv(&na_mat)?;
+let cv_mat = cv::core::Mat::try_to_cv(&na_mat)?;
 
-// TryIntoCv
-let na_mat = na::DMatrix::from_vec(2, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-let cv_mat: cv::core::Mat = na_mat.try_into_cv()?;
+// TryToCv - the other direction
+let cv_mat = cv::core::Mat::from_slice_2d(&[&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]])?;
+let na_mat: na::DMatrix<f64> = cv_mat.try_to_cv()?;
 ```
 
 ## Contribute to this Project
 
 ### Add a new type conversion
 
-To add a new type conversion, take `image::DynamicImage` and
-`opencv::Mat` for example. Proceed to `cv-convert/src` and implement
-the code in `with_opencv_image.rs` because it is a conversion among
-opencv and image crates.
+To add a new type conversion, take `image::DynamicImage` and `opencv::Mat` for example. Proceed
+to `cv-convert/src` and implement the code in `with_opencv_image.rs` because it is a conversion
+among opencv and image crates.
 
-
-Choose `FromCv` or `TryFromCv` trait and add the trait implementation
-on `image::DynamicImage` and `opencv::Mat` types. The choice of
-`FromCv` or `TryFromCv` depends on whether the conversion is fallible
-or not.
+Choose `ToCv` or `TryToCv` trait and add the trait implementation on `image::DynamicImage` and
+`opencv::Mat` types. The choice of `ToCv` or `TryToCv` depends on whether the conversion is
+fallible or not.
 
 ```rust
-impl FromCv<&image::DynamicImage> for opencv::Mat { /* omit */ }
-impl FromCv<&opencv::Mat> for image::DynamicImage { /* omit */ }
+impl ToCv<opencv::Mat> for image::DynamicImage { /* omit */ }
+impl ToCv<image::DynamicImage> for opencv::Mat { /* omit */ }
 
 // or
 
-impl TryFromCv<&image::DynamicImage> for opencv::Mat { /* omit */ }
-impl TryFromCv<&opencv::Mat> for image::DynamicImage { /* omit */ }
+impl TryToCv<opencv::Mat> for image::DynamicImage {
+    type Error = SomeError;
+    fn try_to_cv(&self) -> Result<opencv::Mat, Self::Error> { /* omit */ }
+}
+impl TryToCv<image::DynamicImage> for opencv::Mat {
+    type Error = SomeError;
+    fn try_to_cv(&self) -> Result<image::DynamicImage, Self::Error> { /* omit */ }
+}
 
 #[cfg(test)]
 mod tests {

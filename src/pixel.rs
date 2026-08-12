@@ -1,364 +1,156 @@
-use anyhow::{Error, Result};
+use num_traits::{NumCast, Zero};
 use strum_macros::{Display, EnumString};
 
+/// 像素格式（仅包含本 crate 实际支持的格式）。
+///
+/// 变体的判别值直接等于 FFmpeg `AVPixelFormat` 的枚举值，作为 `pix_fmt`
+/// 映射的**唯一**来源：`pix_fmt()` 通过 `as i32` 得到，反向查找统一走
+/// [`PixelFormat::from_av`]，避免在多个模块中重复维护映射表。
 #[derive(EnumString, Display, Debug, Clone, Copy, PartialEq, Eq)]
 #[strum(serialize_all = "UPPERCASE")]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
+#[repr(i32)]
 pub enum PixelFormat {
-    None,
-
-    YUV420P,
-    YUYV422,
-    RGB24,
-    BGR24,
-    YUV422P,
-    YUV444P,
-    YUV410P,
-    YUV411P,
-    GRAY8,
-    MonoWhite,
-    MonoBlack,
-    PAL8,
-    YUVJ420P,
-    YUVJ422P,
-    YUVJ444P,
-    XVMC_MPEG2_MC,
-    XVMC_MPEG2_IDCT,
-    UYVY422,
-    UYYVYY411,
-    BGR8,
-    BGR4,
-    BGR4_BYTE,
-    RGB8,
-    RGB4,
-    RGB4_BYTE,
-    NV12,
-    NV21,
-
-    ARGB,
-    RGBA,
-    ABGR,
-    BGRA,
-
-    GRAY16BE,
-    GRAY16LE,
-    YUV440P,
-    YUVJ440P,
-    YUVA420P,
-    VDPAU_H264,
-    VDPAU_MPEG1,
-    VDPAU_MPEG2,
-    VDPAU_WMV3,
-    VDPAU_VC1,
-    RGB48BE,
-    RGB48LE,
-
-    RGB565BE,
-    RGB565LE,
-    RGB555BE,
-    RGB555LE,
-
-    BGR565BE,
-    BGR565LE,
-    BGR555BE,
-    BGR555LE,
-
-    VAAPI_MOCO,
-    VAAPI_IDCT,
-    VAAPI_VLD,
-    VAAPI,
-
-    YUV420P16LE,
-    YUV420P16BE,
-    YUV422P16LE,
-    YUV422P16BE,
-    YUV444P16LE,
-    YUV444P16BE,
-    VDPAU_MPEG4,
-    DXVA2_VLD,
-
-    RGB444LE,
-    RGB444BE,
-    BGR444LE,
-    BGR444BE,
-    YA8,
-    // alias YA8
-    Y400A,
-    // alias YA8
-    GRAY8A,
-
-    BGR48BE,
-    BGR48LE,
-
-    YUV420P9BE,
-    YUV420P9LE,
-    YUV420P10BE,
-    YUV420P10LE,
-    YUV422P10BE,
-    YUV422P10LE,
-    YUV444P9BE,
-    YUV444P9LE,
-    YUV444P10BE,
-    YUV444P10LE,
-    YUV422P9BE,
-    YUV422P9LE,
-    VDA_VLD,
-
-    GBRP,
-    // alias GBRP
-    GBR24P,
-    GBRP9BE,
-    GBRP9LE,
-    GBRP10BE,
-    GBRP10LE,
-    GBRP16BE,
-    GBRP16LE,
-
-    YUVA420P9BE,
-    YUVA420P9LE,
-    YUVA422P9BE,
-    YUVA422P9LE,
-    YUVA444P9BE,
-    YUVA444P9LE,
-    YUVA420P10BE,
-    YUVA420P10LE,
-    YUVA422P10BE,
-    YUVA422P10LE,
-    YUVA444P10BE,
-    YUVA444P10LE,
-    YUVA420P16BE,
-    YUVA420P16LE,
-    YUVA422P16BE,
-    YUVA422P16LE,
-    YUVA444P16BE,
-    YUVA444P16LE,
-
-    VDPAU,
-
-    XYZ12LE,
-    XYZ12BE,
-    NV16,
-    NV20LE,
-    NV20BE,
-
-    RGBA64BE,
-    RGBA64LE,
-    BGRA64BE,
-    BGRA64LE,
-
-    YVYU422,
-
-    VDA,
-
-    YA16BE,
-    YA16LE,
-
-    QSV,
-    MMAL,
-
-    D3D11VA_VLD,
-
-    CUDA,
-
-    ZRGB,
-    RGBZ,
-    ZBGR,
-    BGRZ,
-    YUVA444P,
-    YUVA422P,
-
-    YUV420P12BE,
-    YUV420P12LE,
-    YUV420P14BE,
-    YUV420P14LE,
-    YUV422P12BE,
-    YUV422P12LE,
-    YUV422P14BE,
-    YUV422P14LE,
-    YUV444P12BE,
-    YUV444P12LE,
-    YUV444P14BE,
-    YUV444P14LE,
-    GBRP12BE,
-    GBRP12LE,
-    GBRP14BE,
-    GBRP14LE,
-    GBRAP,
-    GBRAP16BE,
-    GBRAP16LE,
-    YUVJ411P,
-
-    BAYER_BGGR8,
-    BAYER_RGGB8,
-    BAYER_GBRG8,
-    BAYER_GRBG8,
-    BAYER_BGGR16LE,
-    BAYER_BGGR16BE,
-    BAYER_RGGB16LE,
-    BAYER_RGGB16BE,
-    BAYER_GBRG16LE,
-    BAYER_GBRG16BE,
-    BAYER_GRBG16LE,
-    BAYER_GRBG16BE,
-
-    YUV440P10LE,
-    YUV440P10BE,
-    YUV440P12LE,
-    YUV440P12BE,
-    AYUV64LE,
-    AYUV64BE,
-
-    VIDEOTOOLBOX,
-
-    XVMC,
-
-    RGB32,
-    RGB32_1,
-    BGR32,
-    BGR32_1,
-    ZRGB32,
-    ZBGR32,
-
-    GRAY16,
-    YA16,
-    RGB48,
-    RGB565,
-    RGB555,
-    RGB444,
-    BGR48,
-    BGR565,
-    BGR555,
-    BGR444,
-
-    YUV420P9,
-    YUV422P9,
-    YUV444P9,
-    YUV420P10,
-    YUV422P10,
-    YUV440P10,
-    YUV444P10,
-    YUV420P12,
-    YUV422P12,
-    YUV440P12,
-    YUV444P12,
-    YUV420P14,
-    YUV422P14,
-    YUV444P14,
-    YUV420P16,
-    YUV422P16,
-    YUV444P16,
-
-    GBRP9,
-    GBRP10,
-    GBRP12,
-    GBRP14,
-    GBRP16,
-    GBRAP16,
-
-    BAYER_BGGR16,
-    BAYER_RGGB16,
-    BAYER_GBRG16,
-    BAYER_GRBG16,
-
-    YUVA420P9,
-    YUVA422P9,
-    YUVA444P9,
-    YUVA420P10,
-    YUVA422P10,
-    YUVA444P10,
-    YUVA420P16,
-    YUVA422P16,
-    YUVA444P16,
-
-    XYZ12,
-    NV20,
-    AYUV64,
-
-    P010LE,
-    P010BE,
-    GBRAP12BE,
-    GBRAP12LE,
-    GBRAP10LE,
-    GBRAP10BE,
-    MEDIACODEC,
-    GRAY12BE,
-    GRAY12LE,
-    GRAY10BE,
-    GRAY10LE,
-    P016LE,
-    P016BE,
-
-    D3D11,
-    GRAY9BE,
-    GRAY9LE,
-    GBRPF32BE,
-    GBRPF32LE,
-    GBRAPF32BE,
-    GBRAPF32LE,
-    DRM_PRIME,
-
-    OPENCL,
-
-    GRAY14BE,
-    GRAY14LE,
-    GRAYF32BE,
-    GRAYF32LE,
-
-    YUVA422P12BE,
-    YUVA422P12LE,
-    YUVA444P12BE,
-    YUVA444P12LE,
-    NV24,
-    NV42,
-
-    VULKAN,
-    Y210BE,
-    Y210LE,
-
-    X2RGB10LE,
-    X2RGB10BE,
-
-    X2BGR10LE,
-    X2BGR10BE,
-    P210BE,
-    P210LE,
-    P410BE,
-    P410LE,
-    P216BE,
-    P216LE,
-    P416BE,
-    P416LE,
-
-    VUYA,
-    RGBAF16BE,
-    RGBAF16LE,
-    VUYX,
-    P012LE,
-    P012BE,
-    Y212BE,
-    Y212LE,
-    XV30BE,
-    XV30LE,
-    XV36BE,
-    XV36LE,
-    RGBF32BE,
-    RGBF32LE,
-    RGBAF32BE,
-    RGBAF32LE,
-
-    P212BE,
-    P212LE,
-    P412BE,
-    P412LE,
-    GBRAP14BE,
-    GBRAP14LE,
-
-    D3D12,
-
-    SAND128,
-    SAND64_10,
-    SAND64_16,
-    RPI4_8,
-    RPI4_10,
+    YUV420P = 0,
+    YUYV422 = 1,
+    RGB24 = 2,
+    BGR24 = 3,
+    YUV422P = 4,
+    YUV444P = 5,
+    YUV410P = 6,
+    YUV411P = 7,
+    GRAY8 = 8,
+    UYVY422 = 15,
+    BGR8 = 17,
+    BGR4 = 18,
+    RGB8 = 20,
+    RGB4 = 21,
+    NV12 = 23,
+    NV21 = 24,
+    RGBA = 26,
+    BGRA = 28,
+    YUV440P = 31,
 }
+
+impl PixelFormat {
+    /// 由 FFmpeg `AVPixelFormat` 值反查像素格式。
+    pub fn from_av(value: i32) -> Option<PixelFormat> {
+        match value {
+            0 => Some(Self::YUV420P),
+            1 => Some(Self::YUYV422),
+            2 => Some(Self::RGB24),
+            3 => Some(Self::BGR24),
+            4 => Some(Self::YUV422P),
+            5 => Some(Self::YUV444P),
+            6 => Some(Self::YUV410P),
+            7 => Some(Self::YUV411P),
+            8 => Some(Self::GRAY8),
+            15 => Some(Self::UYVY422),
+            17 => Some(Self::BGR8),
+            18 => Some(Self::BGR4),
+            20 => Some(Self::RGB8),
+            21 => Some(Self::RGB4),
+            23 => Some(Self::NV12),
+            24 => Some(Self::NV21),
+            26 => Some(Self::RGBA),
+            28 => Some(Self::BGRA),
+            31 => Some(Self::YUV440P),
+            _ => None,
+        }
+    }
+
+    /// 返回 FFmpeg `AVPixelFormat` 值。
+    pub fn pix_fmt(&self) -> i32 {
+        *self as i32
+    }
+
+    /// 像素格式所属的族，用于指导转换路径。
+    pub fn family(&self) -> PixelFamily {
+        match self {
+            Self::RGB4 | Self::RGB8 | Self::RGB24 | Self::BGR4 | Self::BGR8 | Self::BGR24 => {
+                PixelFamily::Rgb
+            }
+            Self::RGBA | Self::BGRA => PixelFamily::Rgba,
+            Self::GRAY8 => PixelFamily::Gray,
+            Self::YUV410P
+            | Self::YUV411P
+            | Self::YUV420P
+            | Self::YUV422P
+            | Self::YUV440P
+            | Self::YUV444P => PixelFamily::PlanarYuv,
+            Self::YUYV422 | Self::UYVY422 => PixelFamily::PackedYuv,
+            Self::NV12 | Self::NV21 => PixelFamily::SemiPlanarYuv,
+        }
+    }
+
+    /// 像素格式的通道数（用于 ndarray 的第三维）。
+    pub fn channels(&self) -> usize {
+        match self {
+            Self::GRAY8 => 1,
+            Self::RGB4 | Self::RGB8 | Self::RGB24 | Self::BGR4 | Self::BGR8 | Self::BGR24 => 3,
+            Self::RGBA | Self::BGRA => 4,
+            Self::YUV410P
+            | Self::YUV411P
+            | Self::YUV420P
+            | Self::YUV422P
+            | Self::YUV440P
+            | Self::YUV444P
+            | Self::YUYV422
+            | Self::NV12
+            | Self::NV21
+            | Self::UYVY422 => 3,
+        }
+    }
+
+    /// 返回 YUV 子采样指数 `(subsample_x, subsample_y)`。
+    ///
+    /// 每个色度采样点覆盖 `2^subsample_x × 2^subsample_y` 个像素；
+    /// 对非 YUV 格式返回 `None`。
+    pub fn yuv_params(&self) -> Option<(u32, u32)> {
+        match self {
+            Self::YUV410P => Some((2, 2)), // 4:1:0
+            Self::YUV411P => Some((2, 0)), // 4:1:1
+            Self::YUV420P => Some((1, 1)), // 4:2:0
+            Self::YUV422P => Some((1, 0)), // 4:2:2
+            Self::YUV440P => Some((0, 1)), // 4:4:0
+            Self::YUV444P => Some((0, 0)), // 4:4:4
+            Self::YUYV422 | Self::UYVY422 => Some((1, 0)), // 4:2:2 打包
+            Self::NV12 | Self::NV21 => Some((1, 1)),      // 4:2:0 半平面
+            _ => None,
+        }
+    }
+}
+
+/// 像素格式族，作为数据驱动的转换分发依据。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PixelFamily {
+    /// 3 通道 RGB/BGR（RGB4/8/24、BGR4/8/24）
+    Rgb,
+    /// 4 通道 RGBA/BGRA
+    Rgba,
+    /// 单通道灰度（GRAY8）
+    Gray,
+    /// 平面 YUV（YUV410P/411P/420P/422P/440P/444P）
+    PlanarYuv,
+    /// 打包 YUV（YUYV422/UYVY422）
+    PackedYuv,
+    /// 半平面 YUV（NV12/NV21）
+    SemiPlanarYuv,
+}
+
+/// 可用于 ndarray 像素数组的数值类型。
+///
+/// 约束：`NumCast` 用于通道值转换（`to_u8`/`to_f64`），`Zero` 用于
+/// 零初始化（`Array3::zeros`），`'static` 用于运行时类型识别（`TypeId`）。
+pub trait PixelType: Copy + Clone + NumCast + Zero + 'static {}
+impl PixelType for u8 {}
+impl PixelType for u16 {}
+impl PixelType for u32 {}
+impl PixelType for u64 {}
+impl PixelType for i8 {}
+impl PixelType for i16 {}
+impl PixelType for i32 {}
+impl PixelType for i64 {}
+impl PixelType for f32 {}
+impl PixelType for f64 {}
