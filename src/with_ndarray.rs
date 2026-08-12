@@ -475,9 +475,9 @@ where
     let mut dst = Array3::<U>::zeros((height, width, 3));
 
     // Get UV dimensions
-    let (subsample_x, subsample_y) = src_format.yuv_params().ok_or_else(|| {
-        Error::msg(format!("Unsupported YUV format: {:?}", src_format))
-    })?;
+    let (subsample_x, subsample_y) = src_format
+        .yuv_params()
+        .ok_or_else(|| Error::msg(format!("Unsupported YUV format: {:?}", src_format)))?;
     let (uv_width_ratio, uv_height_ratio) = (1usize << subsample_x, 1usize << subsample_y);
 
     for y in 0..height {
@@ -523,9 +523,9 @@ where
     let (height, width, _channels) = src.dim();
 
     // Get UV plane dimensions based on format
-    let (subsample_x, subsample_y) = dst_format.yuv_params().ok_or_else(|| {
-        Error::msg(format!("Unsupported to YUV format: {:?}", dst_format))
-    })?;
+    let (subsample_x, subsample_y) = dst_format
+        .yuv_params()
+        .ok_or_else(|| Error::msg(format!("Unsupported to YUV format: {:?}", dst_format)))?;
     let (uv_width_ratio, uv_height_ratio) = (1usize << subsample_x, 1usize << subsample_y);
 
     let uv_height = height.div_ceil(uv_height_ratio);

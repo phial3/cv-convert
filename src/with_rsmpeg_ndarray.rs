@@ -34,9 +34,7 @@ impl<T: PixelType> TryToCv<Array3<T>> for AVFrame {
                 let (subsample_x, subsample_y) = pix_fmt.yuv_params().unwrap();
                 avframe_yuv_to_array(frame, subsample_x, subsample_y)
             }
-            PixelFamily::SemiPlanarYuv => {
-                avframe_nv_to_array(frame, pix_fmt == PixelFormat::NV21)
-            }
+            PixelFamily::SemiPlanarYuv => avframe_nv_to_array(frame, pix_fmt == PixelFormat::NV21),
             PixelFamily::PackedYuv => match pix_fmt {
                 PixelFormat::YUYV422 => avframe_yuyv_to_array(frame),
                 PixelFormat::UYVY422 => avframe_uyvy_to_array(frame),
@@ -73,9 +71,8 @@ impl<T: PixelType> TryToCv<AVFrame> for ArrayWithFormat<T> {
 }
 
 fn get_pixel_format(format: i32) -> Result<PixelFormat> {
-    PixelFormat::from_av(format).ok_or_else(|| {
-        Error::msg(format!("Unsupported pixel format: {}", format))
-    })
+    PixelFormat::from_av(format)
+        .ok_or_else(|| Error::msg(format!("Unsupported pixel format: {}", format)))
 }
 
 // 处理 RGB 打包格式（每像素 `channels` 字节）
@@ -286,10 +283,7 @@ fn avframe_yuyv_to_array<T: PixelType>(frame: &AVFrame) -> Result<Array3<T>, Err
 
 ///////////////////////////////////////////////////
 
-fn array_rgb_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_rgb_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     // 创建并设置 AVFrame
@@ -317,10 +311,7 @@ fn array_rgb_to_avframe<T: PixelType>(
     Ok(frame)
 }
 
-fn array_rgba_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_rgba_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     // 创建并设置 AVFrame
@@ -348,10 +339,7 @@ fn array_rgba_to_avframe<T: PixelType>(
     Ok(frame)
 }
 
-fn array_gray_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_gray_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     // 创建并设置 AVFrame
@@ -377,10 +365,7 @@ fn array_gray_to_avframe<T: PixelType>(
     Ok(frame)
 }
 
-fn array_yuv_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_yuv_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     // 创建并设置 AVFrame
@@ -487,10 +472,7 @@ fn array_nv_to_avframe<T: PixelType>(
 }
 
 /// 将 Array3 转换为 UYVY422 打包 AVFrame。
-fn array_uyvy_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_uyvy_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     let mut frame = AVFrame::new();
@@ -526,10 +508,7 @@ fn array_uyvy_to_avframe<T: PixelType>(
 }
 
 /// 将 Array3 转换为 YUYV422 打包 AVFrame。
-fn array_yuyv_to_avframe<T: PixelType>(
-    array: &Array3<T>,
-    pixel: PixelFormat,
-) -> Result<AVFrame> {
+fn array_yuyv_to_avframe<T: PixelType>(array: &Array3<T>, pixel: PixelFormat) -> Result<AVFrame> {
     let (height, width, _channels) = array.dim();
 
     let mut frame = AVFrame::new();
@@ -1490,7 +1469,13 @@ mod tests {
                 for x in 0..(width / 2) {
                     let base = y * uv_line_size + x * 2;
                     assert_eq!(*(*frame_ptr).data[1].add(base), 100, "U at ({}, {})", x, y);
-                    assert_eq!(*(*frame_ptr).data[1].add(base + 1), 200, "V at ({}, {})", x, y);
+                    assert_eq!(
+                        *(*frame_ptr).data[1].add(base + 1),
+                        200,
+                        "V at ({}, {})",
+                        x,
+                        y
+                    );
                 }
             }
         }
@@ -1531,7 +1516,13 @@ mod tests {
                 for x in 0..(width / 2) {
                     let base = y * uv_line_size + x * 2;
                     assert_eq!(*(*frame_ptr).data[1].add(base), 200, "V at ({}, {})", x, y);
-                    assert_eq!(*(*frame_ptr).data[1].add(base + 1), 100, "U at ({}, {})", x, y);
+                    assert_eq!(
+                        *(*frame_ptr).data[1].add(base + 1),
+                        100,
+                        "U at ({}, {})",
+                        x,
+                        y
+                    );
                 }
             }
         }
@@ -1570,7 +1561,13 @@ mod tests {
                         x,
                         y
                     );
-                    assert_eq!(*(*frame_ptr).data[0].add(base + 2), 200, "V at ({}, {})", x, y);
+                    assert_eq!(
+                        *(*frame_ptr).data[0].add(base + 2),
+                        200,
+                        "V at ({}, {})",
+                        x,
+                        y
+                    );
                     assert_eq!(
                         *(*frame_ptr).data[0].add(base + 3),
                         array[[y, x * 2 + 1, 0]],
@@ -1670,7 +1667,13 @@ mod tests {
                         x,
                         y
                     );
-                    assert_eq!(*(*frame_ptr).data[0].add(base + 1), 100, "U at ({}, {})", x, y);
+                    assert_eq!(
+                        *(*frame_ptr).data[0].add(base + 1),
+                        100,
+                        "U at ({}, {})",
+                        x,
+                        y
+                    );
                     assert_eq!(
                         *(*frame_ptr).data[0].add(base + 2),
                         array[[y, x * 2 + 1, 0]],
@@ -1678,7 +1681,13 @@ mod tests {
                         x,
                         y
                     );
-                    assert_eq!(*(*frame_ptr).data[0].add(base + 3), 200, "V at ({}, {})", x, y);
+                    assert_eq!(
+                        *(*frame_ptr).data[0].add(base + 3),
+                        200,
+                        "V at ({}, {})",
+                        x,
+                        y
+                    );
                 }
             }
         }

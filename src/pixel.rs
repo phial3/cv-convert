@@ -109,14 +109,14 @@ impl PixelFormat {
     /// 对非 YUV 格式返回 `None`。
     pub fn yuv_params(&self) -> Option<(u32, u32)> {
         match self {
-            Self::YUV410P => Some((2, 2)), // 4:1:0
-            Self::YUV411P => Some((2, 0)), // 4:1:1
-            Self::YUV420P => Some((1, 1)), // 4:2:0
-            Self::YUV422P => Some((1, 0)), // 4:2:2
-            Self::YUV440P => Some((0, 1)), // 4:4:0
-            Self::YUV444P => Some((0, 0)), // 4:4:4
+            Self::YUV410P => Some((2, 2)),                 // 4:1:0
+            Self::YUV411P => Some((2, 0)),                 // 4:1:1
+            Self::YUV420P => Some((1, 1)),                 // 4:2:0
+            Self::YUV422P => Some((1, 0)),                 // 4:2:2
+            Self::YUV440P => Some((0, 1)),                 // 4:4:0
+            Self::YUV444P => Some((0, 0)),                 // 4:4:4
             Self::YUYV422 | Self::UYVY422 => Some((1, 0)), // 4:2:2 打包
-            Self::NV12 | Self::NV21 => Some((1, 1)),      // 4:2:0 半平面
+            Self::NV12 | Self::NV21 => Some((1, 1)),       // 4:2:0 半平面
             _ => None,
         }
     }
