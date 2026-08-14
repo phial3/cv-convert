@@ -668,7 +668,7 @@ mod tests {
                         // YUYV = 2 pixels
                         let base = (y as usize) * stride + (x as usize) * 4;
                         // Y1 U Y2 V
-                        data[base + 0] = pattern(x * 2, y, 0); // Y1
+                        data[base] = pattern(x * 2, y, 0); // Y1
                         data[base + 1] = pattern(x * 2, y, 1); // U
                         data[base + 2] = pattern(x * 2 + 1, y, 0); // Y2
                         data[base + 3] = pattern(x * 2, y, 2); // V
@@ -688,7 +688,7 @@ mod tests {
                         // UYVY = 2 pixels
                         let base = (y as usize) * stride + (x as usize) * 4;
                         // U Y1 V Y2
-                        data[base + 0] = pattern(x * 2, y, 1); // U
+                        data[base] = pattern(x * 2, y, 1); // U
                         data[base + 1] = pattern(x * 2, y, 0); // Y1
                         data[base + 2] = pattern(x * 2, y, 2); // V
                         data[base + 3] = pattern(x * 2 + 1, y, 0); // Y2

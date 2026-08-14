@@ -100,7 +100,7 @@ mod tests {
     fn tensor_image_roundtrip() {
         let img = RgbImage::from_pixel(2, 3, Rgb([10u8, 20, 30]));
         let tensor: tch::Tensor = img.to_cv();
-        let back: RgbImage = (&tensor).try_to_cv().unwrap();
+        let back: RgbImage = (tensor).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &Rgb([10u8, 20, 30]));
     }
@@ -109,7 +109,7 @@ mod tests {
     fn tensor_gray_image_roundtrip() {
         let img = image::GrayImage::from_pixel(2, 3, Luma([128u8]));
         let tensor: tch::Tensor = img.to_cv();
-        let back: image::GrayImage = (&tensor).try_to_cv().unwrap();
+        let back: image::GrayImage = (tensor).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &Luma([128u8]));
     }
@@ -118,7 +118,7 @@ mod tests {
     fn tensor_rgba_image_roundtrip() {
         let img = RgbaImage::from_pixel(2, 3, Rgba([10u8, 20, 30, 255]));
         let tensor: tch::Tensor = img.to_cv();
-        let back: RgbaImage = (&tensor).try_to_cv().unwrap();
+        let back: RgbaImage = (tensor).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &Rgba([10u8, 20, 30, 255]));
     }

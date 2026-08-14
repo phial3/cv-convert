@@ -109,10 +109,10 @@ mod tests {
             }
         }
 
-        let tensor: tch::Tensor = (&frame).try_to_cv().unwrap();
+        let tensor: tch::Tensor = (frame).try_to_cv().unwrap();
         assert_eq!(tensor.size(), &[height as i64, width as i64, 3]);
 
-        let back: AVFrame = (&tensor).try_to_cv().unwrap();
+        let back: AVFrame = (tensor).try_to_cv().unwrap();
         assert_eq!(back.width, width);
         assert_eq!(back.height, height);
         assert_eq!(back.format, ffi::AV_PIX_FMT_RGB24);

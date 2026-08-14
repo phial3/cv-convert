@@ -364,8 +364,8 @@ mod tests {
         // gray
         {
             let mat = Mat::new_randn_2d(HEIGHT as i32, WIDTH as i32, opencv::core::CV_8UC1)?;
-            let image: image::GrayImage = (&mat).try_to_cv()?;
-            let mat2: Mat = (&image).try_to_cv()?;
+            let image: image::GrayImage = (mat).try_to_cv()?;
+            let mat2: Mat = (image).try_to_cv()?;
 
             itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: u8 = *mat.at_2d(row as i32, col as i32)?;
@@ -379,8 +379,8 @@ mod tests {
         // rgb
         {
             let mat = Mat::new_randn_2d(HEIGHT as i32, WIDTH as i32, opencv::core::CV_8UC3)?;
-            let image: image::RgbImage = (&mat).try_to_cv()?;
-            let mat2: Mat = (&image).try_to_cv()?;
+            let image: image::RgbImage = (mat).try_to_cv()?;
+            let mat2: Mat = (image).try_to_cv()?;
 
             itertools::iproduct!(0..HEIGHT, 0..WIDTH).try_for_each(|(row, col)| {
                 let p1: opencv::core::Point3_<u8> = *mat.at_2d(row as i32, col as i32)?;
@@ -519,17 +519,17 @@ mod tests {
         // RGBA: Mat(CV_8UC4) -> RgbaImage
         {
             let mat = Mat::new_randn_2d(16, 16, opencv::core::CV_8UC4)?;
-            let image: image::RgbaImage = (&mat).try_to_cv()?;
+            let image: image::RgbaImage = (mat).try_to_cv()?;
             anyhow::ensure!(image.width() == 16 && image.height() == 16);
 
-            let mat2: Mat = (&image).try_to_cv()?;
+            let mat2: Mat = (image).try_to_cv()?;
             anyhow::ensure!(mat2.channels() == 4);
         }
 
         // GrayAlpha: Mat(CV_8UC2) -> GrayAlphaImage
         {
             let mat = Mat::new_randn_2d(16, 16, opencv::core::CV_8UC2)?;
-            let image: image::GrayAlphaImage = (&mat).try_to_cv()?;
+            let image: image::GrayAlphaImage = (mat).try_to_cv()?;
             anyhow::ensure!(image.width() == 16 && image.height() == 16);
         }
 

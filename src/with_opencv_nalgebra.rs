@@ -58,11 +58,11 @@ impl TryToCv<geometry::Isometry3<f64>> for OpenCvPose<&Mat> {
         } = *self;
         let rvec: cv_core::Point3d = rvec_mat.try_to_cv()?;
         let tvec: cv_core::Point3d = tvec_mat.try_to_cv()?;
-        let isometry = (&OpenCvPose {
+        let isometry = OpenCvPose {
             rvec: &rvec,
             tvec: &tvec,
-        })
-            .try_to_cv()?;
+        }
+        .try_to_cv()?;
         Ok(isometry)
     }
 }

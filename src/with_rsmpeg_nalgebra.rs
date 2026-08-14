@@ -47,7 +47,7 @@ impl TryToCv<AVFrame> for na::DMatrix<u8> {
         let height = self.nrows();
         let cols = self.ncols();
         ensure!(
-            cols % 3 == 0,
+            cols.is_multiple_of(3),
             "expected a multiple of 3 columns, but got {}",
             cols
         );
@@ -150,10 +150,10 @@ mod tests {
             }
         }
 
-        let mat: na::DMatrix<u8> = (&frame).try_to_cv().unwrap();
+        let mat: na::DMatrix<u8> = frame.try_to_cv().unwrap();
         assert_eq!(mat.shape(), (height as usize, (width * 3) as usize));
 
-        let back: AVFrame = (&mat).try_to_cv().unwrap();
+        let back: AVFrame = mat.try_to_cv().unwrap();
         assert_eq!(back.width, width);
         assert_eq!(back.height, height);
         assert_eq!(back.format, ffi::AV_PIX_FMT_RGB24);
@@ -182,10 +182,10 @@ mod tests {
             }
         }
 
-        let mat: na::DMatrix<u16> = (&frame).try_to_cv().unwrap();
+        let mat: na::DMatrix<u16> = frame.try_to_cv().unwrap();
         assert_eq!(mat.shape(), (height as usize, (width * 3) as usize));
 
-        let back: AVFrame = (&mat).try_to_cv().unwrap();
+        let back: AVFrame = mat.try_to_cv().unwrap();
         assert_eq!(back.width, width);
         assert_eq!(back.height, height);
         assert_eq!(back.format, ffi::AV_PIX_FMT_RGB24);

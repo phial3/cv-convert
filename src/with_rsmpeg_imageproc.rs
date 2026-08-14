@@ -148,12 +148,12 @@ mod tests {
     #[test]
     fn rgb_roundtrip() {
         let img = RgbImage::from_pixel(3, 2, Rgb([10u8, 20, 30]));
-        let frame: AVFrame = (&img).try_to_cv().unwrap();
+        let frame: AVFrame = (img).try_to_cv().unwrap();
         assert_eq!(frame.format, ffi::AV_PIX_FMT_RGB24);
         assert_eq!(frame.width, 3);
         assert_eq!(frame.height, 2);
 
-        let back: imageproc::image::RgbImage = (&frame).try_to_cv().unwrap();
+        let back: imageproc::image::RgbImage = (frame).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(2, 1), &Rgb([10u8, 20, 30]));
     }
@@ -161,12 +161,12 @@ mod tests {
     #[test]
     fn gray_roundtrip() {
         let img = GrayImage::from_pixel(3, 2, Luma([128u8]));
-        let frame: AVFrame = (&img).try_to_cv().unwrap();
+        let frame: AVFrame = (img).try_to_cv().unwrap();
         assert_eq!(frame.format, ffi::AV_PIX_FMT_GRAY8);
         assert_eq!(frame.width, 3);
         assert_eq!(frame.height, 2);
 
-        let back: imageproc::image::GrayImage = (&frame).try_to_cv().unwrap();
+        let back: imageproc::image::GrayImage = (frame).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(2, 1), &Luma([128u8]));
     }

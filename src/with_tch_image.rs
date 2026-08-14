@@ -56,10 +56,10 @@ fn tensor_to_image_data(from: &TchTensorAsImage) -> Result<(u32, u32, usize, Vec
 
     // 归一化到 [H, W, C]
     let hwc = match from.kind {
-        TchTensorImageShape::Whc => tensor.permute(&[1, 0, 2]),
+        TchTensorImageShape::Whc => tensor.permute([1, 0, 2]),
         TchTensorImageShape::Hwc => tensor,
-        TchTensorImageShape::Chw => tensor.permute(&[1, 2, 0]),
-        TchTensorImageShape::Cwh => tensor.permute(&[2, 0, 1]),
+        TchTensorImageShape::Chw => tensor.permute([1, 2, 0]),
+        TchTensorImageShape::Cwh => tensor.permute([2, 0, 1]),
     };
 
     let size = hwc.size();
@@ -141,7 +141,7 @@ mod tests {
     fn tch_tensor_as_image_roundtrip_rgb() {
         let img = RgbImage::from_pixel(2, 3, Rgb([10u8, 20, 30]));
         let t: TchTensorAsImage = (&img).to_cv();
-        let back: RgbImage = (&t).try_to_cv().unwrap();
+        let back: RgbImage = (t).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &Rgb([10u8, 20, 30]));
     }
@@ -150,7 +150,7 @@ mod tests {
     fn tch_tensor_as_image_roundtrip_rgba() {
         let img = RgbaImage::from_pixel(2, 3, Rgba([10u8, 20, 30, 255]));
         let t: TchTensorAsImage = (&img).to_cv();
-        let back: RgbaImage = (&t).try_to_cv().unwrap();
+        let back: RgbaImage = (t).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &Rgba([10u8, 20, 30, 255]));
     }
@@ -159,7 +159,7 @@ mod tests {
     fn tch_tensor_as_image_roundtrip_gray() {
         let img = GrayImage::from_pixel(2, 3, image::Luma([128u8]));
         let t: TchTensorAsImage = (&img).to_cv();
-        let back: GrayImage = (&t).try_to_cv().unwrap();
+        let back: GrayImage = (t).try_to_cv().unwrap();
         assert_eq!(back.dimensions(), img.dimensions());
         assert_eq!(back.get_pixel(1, 2), &image::Luma([128u8]));
     }
@@ -168,7 +168,7 @@ mod tests {
     fn tch_tensor_as_image_to_dynamic() {
         let img = RgbaImage::from_pixel(2, 3, Rgba([10u8, 20, 30, 255]));
         let t: TchTensorAsImage = (&img).to_cv();
-        let dyn_image: image::DynamicImage = (&t).try_to_cv().unwrap();
+        let dyn_image: image::DynamicImage = (t).try_to_cv().unwrap();
         assert!(matches!(dyn_image, image::DynamicImage::ImageRgba8(_)));
         assert_eq!(dyn_image.dimensions(), (2, 3));
     }

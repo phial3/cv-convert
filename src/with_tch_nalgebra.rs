@@ -42,7 +42,7 @@ where
 {
     fn to_cv(&self) -> tch::Tensor {
         let (rows, cols) = (self.nrows(), self.ncols());
-        let mut data = Vec::with_capacity((rows * cols) as usize);
+        let mut data = Vec::with_capacity(rows * cols);
         for r in 0..rows {
             for c in 0..cols {
                 data.push(self[(r, c)].clone());
@@ -133,7 +133,7 @@ mod tests {
     fn vector_roundtrip() {
         let v = na::DVector::from_vec(vec![1.0f64, 2.0, 3.0]);
         let tensor = v.to_cv();
-        let back: na::DVector<f64> = (&tensor).try_to_cv().unwrap();
+        let back: na::DVector<f64> = (tensor).try_to_cv().unwrap();
         assert!(back.iter().zip(v.iter()).all(|(a, b)| abs_diff_eq!(a, b)));
     }
 
@@ -141,7 +141,7 @@ mod tests {
     fn matrix_roundtrip() {
         let m = na::DMatrix::from_row_slice(2, 3, &[1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let tensor = m.to_cv();
-        let back: na::DMatrix<f64> = (&tensor).try_to_cv().unwrap();
+        let back: na::DMatrix<f64> = (tensor).try_to_cv().unwrap();
         assert_eq!(back.shape(), (2, 3));
         assert!(back.iter().zip(m.iter()).all(|(a, b)| abs_diff_eq!(a, b)));
     }
@@ -151,7 +151,7 @@ mod tests {
         // 固定尺寸矩阵 <-> Tensor
         let m = na::SMatrix::<f64, 2, 3>::from_row_slice(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let tensor: tch::Tensor = m.to_cv();
-        let back: na::SMatrix<f64, 2, 3> = (&tensor).try_to_cv().unwrap();
+        let back: na::SMatrix<f64, 2, 3> = (tensor).try_to_cv().unwrap();
         assert_eq!(back.shape(), (2, 3));
         assert!(back.iter().zip(m.iter()).all(|(a, b)| abs_diff_eq!(a, b)));
     }
@@ -160,7 +160,7 @@ mod tests {
     fn omatrix_shape_mismatch() {
         // 形状不匹配时应报错
         let tensor = tch::Tensor::from_slice(&[1.0f64, 2.0, 3.0, 4.0]).view([2, 2]);
-        let back: Result<na::SMatrix<f64, 2, 3>, _> = (&tensor).try_to_cv();
+        let back: Result<na::SMatrix<f64, 2, 3>, _> = (tensor).try_to_cv();
         assert!(back.is_err());
     }
 }

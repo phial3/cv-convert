@@ -617,7 +617,7 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGB24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> RgbImage
-        let rgb_image: image::RgbImage = (&frame)
+        let rgb_image: image::RgbImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to RgbImage");
 
@@ -628,7 +628,7 @@ mod tests {
         assert_eq!(rgb_image.get_pixel(1, 1), &image::Rgb([255, 255, 0]));
 
         // RgbImage -> AVFrame
-        let new_frame: AVFrame = (&rgb_image)
+        let new_frame: AVFrame = (rgb_image)
             .try_to_cv()
             .expect("Failed to convert RgbImage back to AVFrame");
 
@@ -656,7 +656,7 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGBA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> RgbaImage
-        let rgba_image: image::RgbaImage = (&frame)
+        let rgba_image: image::RgbaImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to RgbaImage");
 
@@ -667,7 +667,7 @@ mod tests {
         assert_eq!(rgba_image.get_pixel(1, 1), &image::Rgba([255, 255, 0, 128]));
 
         // RgbaImage -> AVFrame
-        let new_frame: AVFrame = (&rgba_image)
+        let new_frame: AVFrame = (rgba_image)
             .try_to_cv()
             .expect("Failed to convert RgbaImage back to AVFrame");
 
@@ -699,7 +699,7 @@ mod tests {
         );
 
         // YUV420P -> RgbImage
-        let rgb_image: image::RgbImage = (&frame)
+        let rgb_image: image::RgbImage = (frame)
             .try_to_cv()
             .expect("Failed to convert YUV420P AVFrame to RgbImage");
 
@@ -712,7 +712,7 @@ mod tests {
         assert_eq!(first_pixel, &image::Rgb([255, 255, 255]));
 
         // RgbImage -> YUV420P AVFrame
-        let new_frame: AVFrame = (&rgb_image)
+        let new_frame: AVFrame = (rgb_image)
             .try_to_cv()
             .expect("Failed to convert RgbImage back to AVFrame");
 
@@ -734,7 +734,7 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> GrayImage
-        let gray_image: image::GrayImage = (&frame)
+        let gray_image: image::GrayImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to GrayImage");
 
@@ -745,7 +745,7 @@ mod tests {
         assert_eq!(gray_image.get_pixel(1, 1), &image::Luma([255]));
 
         // GrayImage -> AVFrame
-        let new_frame: AVFrame = (&gray_image)
+        let new_frame: AVFrame = (gray_image)
             .try_to_cv()
             .expect("Failed to convert GrayImage back to AVFrame");
 
@@ -764,7 +764,7 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> GrayAlphaImage
-        let ga: image::GrayAlphaImage = (&frame)
+        let ga: image::GrayAlphaImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to GrayAlphaImage");
 
@@ -774,7 +774,7 @@ mod tests {
         assert_eq!(ga.get_pixel(1, 1), &image::LumaA([255, 255]));
 
         // GrayAlphaImage -> AVFrame（亮度写入 GRAY8）
-        let new_frame: AVFrame = (&ga)
+        let new_frame: AVFrame = (ga)
             .try_to_cv()
             .expect("Failed to convert GrayAlphaImage to AVFrame");
         assert_eq!(new_frame.format, ffi::AV_PIX_FMT_GRAY8);
@@ -793,8 +793,8 @@ mod tests {
             None,
             None,
         );
-        let rgb_image: image::RgbImage = (&rgb_frame).try_to_cv().unwrap();
-        let new_rgb_frame: AVFrame = (&rgb_image).try_to_cv().unwrap();
+        let rgb_image: image::RgbImage = (rgb_frame).try_to_cv().unwrap();
+        let new_rgb_frame: AVFrame = (rgb_image).try_to_cv().unwrap();
         assert_eq!(new_rgb_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // RGBA 格式保持测试
@@ -808,8 +808,8 @@ mod tests {
             None,
             None,
         );
-        let rgba_image: image::RgbaImage = (&rgba_frame).try_to_cv().unwrap();
-        let new_rgba_frame: AVFrame = (&rgba_image).try_to_cv().unwrap();
+        let rgba_image: image::RgbaImage = (rgba_frame).try_to_cv().unwrap();
+        let new_rgba_frame: AVFrame = (rgba_image).try_to_cv().unwrap();
         assert_eq!(new_rgba_frame.format, ffi::AV_PIX_FMT_RGBA);
     }
 
@@ -822,7 +822,7 @@ mod tests {
         rgb_image.put_pixel(0, 1, image::Rgb([0, 0, 255])); // Blue
         rgb_image.put_pixel(1, 1, image::Rgb([255, 255, 0])); // Yellow
 
-        let frame: AVFrame = (&rgb_image)
+        let frame: AVFrame = (rgb_image)
             .try_to_cv()
             .expect("Failed to convert RgbImage to AVFrame");
 
@@ -846,7 +846,7 @@ mod tests {
         rgba_image.put_pixel(0, 1, image::Rgba([0, 0, 255, 255])); // Blue
         rgba_image.put_pixel(1, 1, image::Rgba([255, 255, 0, 128])); // Semi-transparent Yellow
 
-        let frame: AVFrame = (&rgba_image)
+        let frame: AVFrame = (rgba_image)
             .try_to_cv()
             .expect("Failed to convert RgbaImage to AVFrame");
 
@@ -864,7 +864,7 @@ mod tests {
         gray_image.put_pixel(0, 1, image::Luma([170])); // Light gray
         gray_image.put_pixel(1, 1, image::Luma([255])); // White
 
-        let frame: AVFrame = (&gray_image)
+        let frame: AVFrame = (gray_image)
             .try_to_cv()
             .expect("Failed to convert GrayImage to AVFrame");
 
@@ -889,12 +889,12 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGB24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -922,12 +922,12 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_RGBA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -955,12 +955,12 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_BGR24, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -988,12 +988,12 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_BGRA, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -1016,12 +1016,12 @@ mod tests {
         let frame = create_test_frame(ffi::AV_PIX_FMT_GRAY8, 2, 2, test_data.clone(), None, None);
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -1053,12 +1053,12 @@ mod tests {
         );
 
         // AVFrame YUV420P -> DynamicImage RGB24
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage RGB24 -> AVFrame RGB24
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 
@@ -1083,8 +1083,8 @@ mod tests {
             None,
             None,
         );
-        let rgb_image: image::DynamicImage = (&rgb_frame).try_to_cv().unwrap();
-        let new_rgb_frame: AVFrame = (&rgb_image).try_to_cv().unwrap();
+        let rgb_image: image::DynamicImage = (rgb_frame).try_to_cv().unwrap();
+        let new_rgb_frame: AVFrame = (rgb_image).try_to_cv().unwrap();
         assert_eq!(new_rgb_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // RGBA 格式保持测试
@@ -1098,8 +1098,8 @@ mod tests {
             None,
             None,
         );
-        let rgba_image: image::DynamicImage = (&rgba_frame).try_to_cv().unwrap();
-        let new_rgba_frame: AVFrame = (&rgba_image).try_to_cv().unwrap();
+        let rgba_image: image::DynamicImage = (rgba_frame).try_to_cv().unwrap();
+        let new_rgba_frame: AVFrame = (rgba_image).try_to_cv().unwrap();
         assert_eq!(new_rgba_frame.format, ffi::AV_PIX_FMT_RGBA);
 
         // BGR24 格式保持测试
@@ -1111,8 +1111,8 @@ mod tests {
             None,
             None,
         );
-        let bgr_image: image::DynamicImage = (&bgr_frame).try_to_cv().unwrap();
-        let new_bgr_frame: AVFrame = (&bgr_image).try_to_cv().unwrap();
+        let bgr_image: image::DynamicImage = (bgr_frame).try_to_cv().unwrap();
+        let new_bgr_frame: AVFrame = (bgr_image).try_to_cv().unwrap();
         assert_eq!(new_bgr_frame.format, ffi::AV_PIX_FMT_RGB24);
 
         // BGRA 格式保持测试
@@ -1126,8 +1126,8 @@ mod tests {
             None,
             None,
         );
-        let bgra_image: image::DynamicImage = (&bgra_frame).try_to_cv().unwrap();
-        let new_bgra_frame: AVFrame = (&bgra_image).try_to_cv().unwrap();
+        let bgra_image: image::DynamicImage = (bgra_frame).try_to_cv().unwrap();
+        let new_bgra_frame: AVFrame = (bgra_image).try_to_cv().unwrap();
         assert_eq!(new_bgra_frame.format, ffi::AV_PIX_FMT_RGBA);
 
         // GRAY8 格式保持测试
@@ -1139,8 +1139,8 @@ mod tests {
             None,
             None,
         );
-        let gray_image: image::DynamicImage = (&gray_frame).try_to_cv().unwrap();
-        let new_gray_frame: AVFrame = (&gray_image).try_to_cv().unwrap();
+        let gray_image: image::DynamicImage = (gray_frame).try_to_cv().unwrap();
+        let new_gray_frame: AVFrame = (gray_image).try_to_cv().unwrap();
         assert_eq!(new_gray_frame.format, ffi::AV_PIX_FMT_GRAY8);
 
         println!("Test completed in: {}ms", start.elapsed().as_millis());
@@ -1161,7 +1161,7 @@ mod tests {
         let dynamic_image = DynamicImage::ImageRgb8(rgb_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame: AVFrame = (&dynamic_image)
+        let frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
@@ -1178,7 +1178,7 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let _new_dynamic_image: image::DynamicImage = (&frame)
+        let _new_dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
@@ -1200,7 +1200,7 @@ mod tests {
         let dynamic_image = DynamicImage::ImageRgba8(rgba_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame: AVFrame = (&dynamic_image)
+        let frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
@@ -1219,7 +1219,7 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let new_dynamic_image: image::DynamicImage = (&frame)
+        let new_dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
@@ -1245,7 +1245,7 @@ mod tests {
         let dynamic_image = DynamicImage::ImageLuma8(gray_image.clone());
 
         // DynamicImage -> AVFrame
-        let frame: AVFrame = (&dynamic_image)
+        let frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage to AVFrame");
 
@@ -1263,7 +1263,7 @@ mod tests {
         }
 
         // AVFrame -> DynamicImage
-        let _new_dynamic_image: image::DynamicImage = (&frame)
+        let _new_dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
@@ -1290,12 +1290,12 @@ mod tests {
         );
 
         // AVFrame -> DynamicImage
-        let dynamic_image: image::DynamicImage = (&frame)
+        let dynamic_image: image::DynamicImage = (frame)
             .try_to_cv()
             .expect("Failed to convert AVFrame to DynamicImage");
 
         // DynamicImage -> AVFrame
-        let new_frame: AVFrame = (&dynamic_image)
+        let new_frame: AVFrame = (dynamic_image)
             .try_to_cv()
             .expect("Failed to convert DynamicImage back to AVFrame");
 

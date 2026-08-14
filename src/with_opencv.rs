@@ -250,16 +250,16 @@ mod tests {
     fn test_point2_conversion() -> Result<()> {
         // 测试 Point2f
         let point = Point2f::new(1.5, 2.5);
-        let mat: Mat = (&point).try_to_cv()?;
-        let converted_point: Point2f = (&mat).try_to_cv()?;
+        let mat: Mat = (point).try_to_cv()?;
+        let converted_point: Point2f = (mat).try_to_cv()?;
 
         assert!((point.x - converted_point.x).abs() < EPSILON as f32);
         assert!((point.y - converted_point.y).abs() < EPSILON as f32);
 
         // 测试 Point2i
         let point = Point2i::new(1, 2);
-        let mat: Mat = (&point).try_to_cv()?;
-        let converted_point: Point2i = (&mat).try_to_cv()?;
+        let mat: Mat = (point).try_to_cv()?;
+        let converted_point: Point2i = (mat).try_to_cv()?;
 
         assert_eq!(point.x, converted_point.x);
         assert_eq!(point.y, converted_point.y);
@@ -271,8 +271,8 @@ mod tests {
     fn test_point3_conversion() -> Result<()> {
         // 测试 Point3f
         let point = Point3f::new(1.5, 2.5, 3.5);
-        let mat: Mat = (&point).try_to_cv()?;
-        let converted_point: Point3f = (&mat).try_to_cv()?;
+        let mat: Mat = (point).try_to_cv()?;
+        let converted_point: Point3f = (mat).try_to_cv()?;
 
         assert!((point.x - converted_point.x).abs() < EPSILON as f32);
         assert!((point.y - converted_point.y).abs() < EPSILON as f32);
@@ -280,8 +280,8 @@ mod tests {
 
         // 测试 Point3i
         let point = Point3i::new(1, 2, 3);
-        let mat: Mat = (&point).try_to_cv()?;
-        let converted_point: Point3i = (&mat).try_to_cv()?;
+        let mat: Mat = (point).try_to_cv()?;
+        let converted_point: Point3i = (mat).try_to_cv()?;
 
         assert_eq!(point.x, converted_point.x);
         assert_eq!(point.y, converted_point.y);
@@ -294,9 +294,9 @@ mod tests {
     fn test_invalid_point_conversion() -> Result<()> {
         // 测试无效的数据长度
         let mat = Mat::new_randn_2d(1, 1, cv_core::CV_32F)?;
-        let point: Result<Point2f, _> = (&mat).try_to_cv();
+        let point: Result<Point2f, _> = (mat).try_to_cv();
         assert!(point.is_err());
-        let point: Result<Point3f, _> = (&mat).try_to_cv();
+        let point: Result<Point3f, _> = (mat).try_to_cv();
         assert!(point.is_err());
 
         Ok(())

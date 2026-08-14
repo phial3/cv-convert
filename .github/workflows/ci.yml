@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+          sudo apt-get remove -y --purge ffmpeg \
+            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+            libavdevice-dev libavfilter-dev libswresample-dev || true
           sudo apt-get install -y \
             build-essential \
             ca-certificates \
@@ -45,7 +48,8 @@ jobs:
             python3-pip \
             python3-dev \
             libopencv-dev \
-            python3-opencv
+            python3-opencv \
+            unzip
 
       # https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu
       - name: Install FFmpegBuildTools
@@ -77,6 +81,12 @@ jobs:
           ls -l ${FFMPEG_BUILD_DIR}/lib || true
           ls -l ${FFMPEG_BUILD_DIR}/include || true
 
+      - name: Setup libtorch
+        run: |
+          wget -q "https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.11.0%2Bcpu.zip" -O libtorch.zip
+          unzip -q libtorch.zip -d .
+          echo "LIBTORCH=${PWD}/libtorch" >> $GITHUB_ENV
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -99,16 +109,21 @@ jobs:
       - name: Install dependencies
         run: brew install ffmpeg opencv pkg-config
 
+      - name: Setup torch
+        run: |
+          python3 -m pip install --break-system-packages torch==2.11.0
+          echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
 
       - name: Build
-        run: cargo build --all-features --verbose
+        run: cargo build --features full,test-tch --verbose
 
       - name: Run Test
-        run: cargo test --all --all-features --verbose -- --nocapture
+        run: cargo test --features full,test-tch --verbose -- --nocapture
 
   build-windows:
     name: build / windows / latest ffmpeg
@@ -136,6 +151,7 @@ jobs:
           Add-Content $env:GITHUB_ENV "FFMPEG_INCLUDE_DIR=${pwd}\ffmpeg\include`n"
           Add-Content $env:GITHUB_ENV "FFMPEG_LIBS_DIR=${pwd}\ffmpeg\lib`n"
           Add-Content $env:GITHUB_ENV "FFMPEG_DLL_PATH=${pwd}\ffmpeg\bin`n"
+          Add-Content $env:GITHUB_ENV "FFMPEG_LINK_MODE=dynamic`n"
           Add-Content $env:GITHUB_PATH "${pwd}\ffmpeg\bin`n"
 
       - name: Setup Rust
@@ -165,6 +181,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+          sudo apt-get remove -y --purge ffmpeg \
+            libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
+            libavdevice-dev libavfilter-dev libswresample-dev || true
           sudo apt-get install -y \
             build-essential \
             ca-certificates \
@@ -178,7 +197,8 @@ jobs:
             python3-pip \
             python3-dev \
             libopencv-dev \
-            python3-opencv
+            python3-opencv \
+            unzip
 
       # https://trac.ffmpeg.org/wiki/CompilationGuide/Ubuntu
       - name: Install FFmpegBuildTools
@@ -209,6 +229,12 @@ jobs:
           echo "FFmpeg library directory: $FFMPEG_LIB_DIR"
           ls -l ${FFMPEG_BUILD_DIR}/lib || true
           ls -l ${FFMPEG_BUILD_DIR}/include || true
+
+      - name: Setup libtorch
+        run: |
+          wget -q "https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.11.0%2Bcpu.zip" -O libtorch.zip
+          unzip -q libtorch.zip -d .
+          echo "LIBTORCH=${PWD}/libtorch" >> $GITHUB_ENV
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

@@ -344,8 +344,8 @@ mod tests {
 
         for _ in 0..ROUNDS {
             let before = Tensor::randn(size.as_ref(), tch::kind::FLOAT_CPU);
-            let mat: Mat = (&before).try_to_cv()?;
-            let after: Tensor = (&mat).try_to_cv()?;
+            let mat: Mat = (before).try_to_cv()?;
+            let after: Tensor = (mat).try_to_cv()?;
             let after = after.f_view(size)?;
 
             // compare Tensor and Mat values
@@ -408,7 +408,7 @@ mod tests {
             let before = Tensor::randn([channels, height, width], tch::kind::FLOAT_CPU);
             let mat: Mat = TchTensorAsImage::new(before.shallow_clone(), TchTensorImageShape::Chw)?
                 .try_to_cv()?;
-            let after: Tensor = (&mat).try_to_cv()?;
+            let after: Tensor = (mat).try_to_cv()?;
             let after = after.f_permute([2, 0, 1])?; // hwc -> chw
 
             // compare Tensor and Mat values
